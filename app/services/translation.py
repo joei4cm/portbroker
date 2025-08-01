@@ -3,7 +3,7 @@ import uuid
 import time
 from typing import Dict, Any, List, Optional, Union
 from app.schemas.openai import ChatCompletionRequest, ChatCompletionResponse, ChatMessage, Choice, Usage
-from app.schemas.anthropic import AnthropicRequest, AnthropicMessage, AnthropicResponse
+from app.schemas.anthropic import AnthropicRequest, AnthropicMessage, AnthropicResponse, CountTokensRequest
 
 
 class TranslationService:
@@ -152,4 +152,38 @@ class TranslationService:
             stream=anthropic_request.stream,
             tools=anthropic_request.tools,
             tool_choice=anthropic_request.tool_choice
+        )
+    
+    @staticmethod
+    def count_tokens_to_openai_request(count_tokens_request: CountTokensRequest) -> ChatCompletionRequest:
+        messages = []
+        
+        if count_tokens_request.system:
+            messages.append(ChatMessage(role="system", content=count_tokens_request.system))
+        
+        for msg in count_tokens_request.messages:
+            content = msg.content
+            if isinstance(content, list):
+                formatted_content = []
+                for item in content:
+                    if isinstance(item, dict):
+                        if item.get("type") == "text":
+                            formatted_content.append({"type": "text", "text": item.get("text", "")})
+                        elif item.get("type") == "image":
+                            source = item.get("source", {})
+                            if source.get("type") == "base64":
+                                data_url = f"data:{source.get('media_type', 'image/jpeg')};base64,{source.get('data', '')}"
+                                formatted_content.append({
+                                    "type": "image_url",
+                                    "image_url": {"url": data_url}
+                                })
+                content = formatted_content if formatted_content else str(content)
+            
+            messages.append(ChatMessage(role=msg.role, content=content))
+        
+        return ChatCompletionRequest(
+            model=count_tokens_request.model,
+            messages=messages,
+            max_tokens=1,
+            stream=False
         )

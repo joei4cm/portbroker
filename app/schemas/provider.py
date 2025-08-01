@@ -53,6 +53,7 @@ class APIKeyBase(BaseModel):
     api_key: str = Field(..., description="The actual API key")
     description: Optional[str] = Field(None, description="Description of the key")
     is_active: bool = Field(True, description="Whether the key is active")
+    expires_at: Optional[datetime] = Field(None, description="Expiration date for the API key")
 
 
 class APIKeyCreate(APIKeyBase):
@@ -64,6 +65,7 @@ class APIKeyUpdate(BaseModel):
     api_key: Optional[str] = None
     description: Optional[str] = None
     is_active: Optional[bool] = None
+    expires_at: Optional[datetime] = None
 
 
 class APIKey(APIKeyBase):

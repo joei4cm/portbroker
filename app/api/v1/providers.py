@@ -1,7 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, delete
-from typing import List
+from typing import List, Optional
+from datetime import datetime, timedelta
 from app.core.database import get_db
 from app.models.provider import Provider, APIKey
 from app.schemas.provider import (
@@ -89,6 +90,34 @@ async def get_api_key(key_id: int, db: AsyncSession = Depends(get_db)):
 @router.post("/api-keys", response_model=APIKeySchema)
 async def create_api_key(key_data: APIKeyCreate, db: AsyncSession = Depends(get_db)):
     db_key = APIKey(**key_data.model_dump())
+    db.add(db_key)
+    await db.commit()
+    await db.refresh(db_key)
+    return db_key
+
+
+@router.post("/api-keys/with-expiry")
+async def create_api_key_with_expiry(
+    key_name: str,
+    api_key: str,
+    description: Optional[str] = None,
+    expires_in_days: Optional[int] = None,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Create API key with optional expiration in days.
+    If expires_in_days is None or 0, the key never expires.
+    """
+    expires_at = None
+    if expires_in_days and expires_in_days > 0:
+        expires_at = datetime.now() + timedelta(days=expires_in_days)
+    
+    db_key = APIKey(
+        key_name=key_name,
+        api_key=api_key,
+        description=description,
+        expires_at=expires_at
+    )
     db.add(db_key)
     await db.commit()
     await db.refresh(db_key)

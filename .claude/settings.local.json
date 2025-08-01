@@ -1,9 +1,23 @@
 {
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
   "permissions": {
     "allow": [
       "Bash(dir:*)",
       "Bash(ls:*)",
-      "WebFetch(domain:github.com)"
+      "WebFetch(domain:github.com)",
+      "mcp__serena__get_symbols_overview",
+      "mcp__serena__search_for_pattern",
+      "Bash(uv run mypy .)",
+      "Bash(uv run black:*)",
+      "Bash(uv run isort .)",
+      "mcp__serena__check_onboarding_performed",
+      "mcp__serena__onboarding",
+      "mcp__serena__list_dir",
+      "mcp__fetch__imageFetch",
+      "Bash(uv sync:*)",
+      "Bash(uv run mypy:*)",
+      "Bash(curl -X GET \"http://localhost:8000/v1/models\" -H \"accept: application/json\")",
+      "Bash(uv run flake8:*)"
     ],
     "deny": []
   }
