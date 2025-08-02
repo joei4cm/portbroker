@@ -8,14 +8,13 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.auth import get_current_api_key
 from app.core.database import get_db
 from app.schemas.openai import (
     Batch,
     BatchRequest,
     ChatCompletionRequest,
-    ChatCompletionResponse,
     EmbeddingRequest,
-    EmbeddingResponse,
     FileDeleteResponse,
     FilePurpose,
     FileUpload,
@@ -41,7 +40,9 @@ async def stream_response(response: httpx.Response) -> AsyncGenerator[str, None]
 
 @router.post("/chat/completions")
 async def chat_completions(
-    request: ChatCompletionRequest, db: AsyncSession = Depends(get_db)
+    request: ChatCompletionRequest, 
+    db: AsyncSession = Depends(get_db),
+    api_key: dict = Depends(get_current_api_key)
 ):
     try:
         if request.stream:
@@ -69,7 +70,10 @@ async def chat_completions(
 
 
 @router.get("/models")
-async def list_models(db: AsyncSession = Depends(get_db)):
+async def list_models(
+    db: AsyncSession = Depends(get_db),
+    api_key: dict = Depends(get_current_api_key)
+):
     try:
         providers = await ProviderService.get_active_providers(db)
 
@@ -107,7 +111,11 @@ async def list_models(db: AsyncSession = Depends(get_db)):
 
 
 @router.get("/models/{model_id}")
-async def get_model(model_id: str, db: AsyncSession = Depends(get_db)):
+async def get_model(
+    model_id: str, 
+    db: AsyncSession = Depends(get_db),
+    api_key: dict = Depends(get_current_api_key)
+):
     try:
         providers = await ProviderService.get_active_providers(db)
 

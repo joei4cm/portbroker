@@ -228,6 +228,25 @@ Example provider configurations:
 }
 ```
 
+### OpenRouter Provider
+```json
+{
+  "name": "OpenRouter",
+  "provider_type": "openrouter",
+  "base_url": "https://openrouter.ai/api/v1",
+  "api_key": "sk-or-your-key",
+  "headers": {
+    "HTTP-Referer": "https://your-domain.com",
+    "X-Title": "Your App Name"
+  },
+  "big_model": "anthropic/claude-3.5-sonnet",
+  "medium_model": "anthropic/claude-3.5-sonnet",
+  "small_model": "anthropic/claude-3-haiku",
+  "is_active": true,
+  "priority": 10
+}
+```
+
 ## Provider Configuration Fields
 
 All provider configurations support the following fields:

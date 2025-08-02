@@ -8,6 +8,7 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.auth import get_current_api_key
 from app.core.database import get_db
 from app.schemas.anthropic import (
     AnthropicRequest,
@@ -86,7 +87,11 @@ async def stream_anthropic_response(
 
 
 @router.post("/messages")
-async def create_message(request: AnthropicRequest, db: AsyncSession = Depends(get_db)):
+async def create_message(
+    request: AnthropicRequest, 
+    db: AsyncSession = Depends(get_db),
+    api_key: dict = Depends(get_current_api_key)
+):
     try:
         openai_request = TranslationService.anthropic_to_openai_request(request)
 
@@ -182,7 +187,10 @@ async def count_tokens(request: CountTokensRequest, db: AsyncSession = Depends(g
 
 
 @router.get("/models")
-async def list_models(db: AsyncSession = Depends(get_db)):
+async def list_models(
+    db: AsyncSession = Depends(get_db),
+    api_key: dict = Depends(get_current_api_key)
+):
     try:
         providers = await ProviderService.get_active_providers(db)
 
@@ -232,7 +240,11 @@ async def list_models(db: AsyncSession = Depends(get_db)):
 
 
 @router.get("/models/{model_id}")
-async def get_model(model_id: str, db: AsyncSession = Depends(get_db)):
+async def get_model(
+    model_id: str, 
+    db: AsyncSession = Depends(get_db),
+    api_key: dict = Depends(get_current_api_key)
+):
     try:
         providers = await ProviderService.get_active_providers(db)
 

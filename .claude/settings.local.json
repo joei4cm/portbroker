@@ -27,7 +27,17 @@
       "Bash(rm:*)",
       "Bash(uv run pytest:*)",
       "Bash(timeout:*)",
-      "Bash(true:*)"
+      "Bash(true:*)",
+      "Bash(-H \"Authorization: Bearer sk-test-real-api-key-12345\" )",
+      "Bash(--max-time 5)",
+      "mcp__serena__find_symbol",
+      "mcp__serena__replace_symbol_body",
+      "Bash(-H \"Authorization: Bearer sk-test-real-api-key-12345\" )",
+      "Bash(-H \"Authorization: Bearer sk-test-real-key-123456\" )",
+      "Bash(-H \"Authorization: Bearer sk-test-real-key-123456\" )",
+      "Bash(-H \"Content-Type: application/json\" )",
+      "Bash(-d '{\n    \"\"key_name\"\": \"\"test-auto-key\"\",\n    \"\"description\"\": \"\"Auto-generated test key\"\",\n    \"\"expires_in_days\"\": 30,\n    \"\"is_active\"\": true\n  }')",
+      "Bash(-H \"Content-Type: application/json\" )"
     ],
     "deny": []
   }

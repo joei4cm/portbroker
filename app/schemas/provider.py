@@ -73,6 +73,15 @@ class APIKeyCreate(APIKeyBase):
     pass
 
 
+class APIKeyAutoCreate(BaseModel):
+    key_name: str = Field(..., description="Name/identifier for the API key")
+    description: Optional[str] = Field(None, description="Description of the key")
+    expires_in_days: Optional[int] = Field(
+        None, description="Number of days until expiration (None = no expiration)"
+    )
+    is_active: bool = Field(True, description="Whether the key is active")
+
+
 class APIKeyUpdate(BaseModel):
     key_name: Optional[str] = None
     api_key: Optional[str] = None

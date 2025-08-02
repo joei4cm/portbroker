@@ -10,6 +10,7 @@ from app.models.provider import APIKey, Provider
 from app.schemas.provider import APIKey as APIKeySchema
 from app.schemas.provider import (
     APIKeyCreate,
+    APIKeyAutoCreate,
     APIKeyUpdate,
 )
 from app.schemas.provider import Provider as ProviderSchema
@@ -17,6 +18,7 @@ from app.schemas.provider import (
     ProviderCreate,
     ProviderUpdate,
 )
+from app.utils.api_key_generator import generate_openai_style_api_key, generate_expiration_date
 
 router = APIRouter()
 
@@ -97,6 +99,34 @@ async def create_api_key(key_data: APIKeyCreate, db: AsyncSession = Depends(get_
     db.add(db_key)
     await db.commit()
     await db.refresh(db_key)
+    return db_key
+
+
+@router.post("/api-keys/auto-generate", response_model=APIKeySchema)
+async def auto_generate_api_key(key_data: APIKeyAutoCreate, db: AsyncSession = Depends(get_db)):
+    """
+    Auto-generate an API key in OpenAI/Anthropic style.
+    The API key will be automatically generated and returned in the response.
+    """
+    # Generate the API key
+    generated_key = generate_openai_style_api_key()
+    
+    # Calculate expiration date if specified
+    expires_at = generate_expiration_date(key_data.expires_in_days)
+    
+    # Create the API key record
+    db_key = APIKey(
+        key_name=key_data.key_name,
+        api_key=generated_key,
+        description=key_data.description,
+        is_active=key_data.is_active,
+        expires_at=expires_at,
+    )
+    
+    db.add(db_key)
+    await db.commit()
+    await db.refresh(db_key)
+    
     return db_key
 
 
