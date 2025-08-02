@@ -1,11 +1,13 @@
-from pydantic import BaseModel, Field
-from typing import List, Optional, Dict, Any, Union, Literal
 from datetime import datetime
 from enum import Enum
+from typing import Any, Dict, List, Literal, Optional, Union
+
+from pydantic import BaseModel, Field
 
 
 class FilePurpose(str, Enum):
     """Purpose of a file upload"""
+
     vision = "vision"
     batch = "batch"
     fine_tune = "fine_tune"
@@ -14,6 +16,7 @@ class FilePurpose(str, Enum):
 
 class ModerationCategory(str, Enum):
     """Content moderation categories"""
+
     sexual = "sexual"
     hate = "hate"
     harassment = "harassment"

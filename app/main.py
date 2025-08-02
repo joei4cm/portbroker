@@ -1,10 +1,11 @@
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+
+from app.api.v1.router import api_router
 from app.core.config import settings
 from app.core.database import init_db
-from app.api.v1.router import api_router
 
 
 @asynccontextmanager
@@ -17,7 +18,7 @@ app = FastAPI(
     title="PortBroker",
     description="API service that translates Anthropic API to OpenAI compatible format",
     version="0.1.0",
-    lifespan=lifespan
+    lifespan=lifespan,
 )
 
 app.add_middleware(

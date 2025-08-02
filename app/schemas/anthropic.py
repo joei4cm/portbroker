@@ -1,7 +1,8 @@
-from pydantic import BaseModel, Field
-from typing import List, Optional, Dict, Any, Union, Literal
 from datetime import datetime
 from enum import Enum
+from typing import Any, Dict, List, Literal, Optional, Union
+
+from pydantic import BaseModel, Field
 
 
 class MessageRole(str, Enum):
@@ -92,11 +93,11 @@ class ToolResultContent(BaseModel):
 
 class ContentBlock(BaseModel):
     model_config = {"extra": "allow"}
-    
+
     @classmethod
     def __get_validators__(cls):
         yield cls.validate
-    
+
     @classmethod
     def validate(cls, v):
         if isinstance(v, dict):
@@ -190,7 +191,7 @@ class ModelInfo(BaseModel):
     max_tokens: int
     context_length: int
     supported_modalities: List[str]
-    
+
 
 class ModelListResponse(BaseModel):
     object: Literal["list"] = "list"

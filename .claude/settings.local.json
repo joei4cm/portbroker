@@ -17,7 +17,17 @@
       "Bash(uv sync:*)",
       "Bash(uv run mypy:*)",
       "Bash(curl -X GET \"http://localhost:8000/v1/models\" -H \"accept: application/json\")",
-      "Bash(uv run flake8:*)"
+      "Bash(uv run flake8:*)",
+      "Bash(sqlite3:*)",
+      "Bash(uv run python:*)",
+      "Bash(curl:*)",
+      "Bash(pkill:*)",
+      "Bash(uv add:*)",
+      "Bash(git checkout:*)",
+      "Bash(rm:*)",
+      "Bash(uv run pytest:*)",
+      "Bash(timeout:*)",
+      "Bash(true:*)"
     ],
     "deny": []
   }

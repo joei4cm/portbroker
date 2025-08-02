@@ -1,17 +1,21 @@
-from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, delete
-from typing import List, Optional
 from datetime import datetime, timedelta
+from typing import List, Optional
+
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy import delete, select
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.core.database import get_db
-from app.models.provider import Provider, APIKey
+from app.models.provider import APIKey, Provider
+from app.schemas.provider import APIKey as APIKeySchema
 from app.schemas.provider import (
-    Provider as ProviderSchema,
+    APIKeyCreate,
+    APIKeyUpdate,
+)
+from app.schemas.provider import Provider as ProviderSchema
+from app.schemas.provider import (
     ProviderCreate,
     ProviderUpdate,
-    APIKey as APIKeySchema,
-    APIKeyCreate,
-    APIKeyUpdate
 )
 
 router = APIRouter()
@@ -34,7 +38,9 @@ async def get_provider(provider_id: int, db: AsyncSession = Depends(get_db)):
 
 
 @router.post("/providers", response_model=ProviderSchema)
-async def create_provider(provider_data: ProviderCreate, db: AsyncSession = Depends(get_db)):
+async def create_provider(
+    provider_data: ProviderCreate, db: AsyncSession = Depends(get_db)
+):
     db_provider = Provider(**provider_data.model_dump())
     db.add(db_provider)
     await db.commit()
@@ -44,19 +50,17 @@ async def create_provider(provider_data: ProviderCreate, db: AsyncSession = Depe
 
 @router.put("/providers/{provider_id}", response_model=ProviderSchema)
 async def update_provider(
-    provider_id: int, 
-    provider_data: ProviderUpdate, 
-    db: AsyncSession = Depends(get_db)
+    provider_id: int, provider_data: ProviderUpdate, db: AsyncSession = Depends(get_db)
 ):
     result = await db.execute(select(Provider).where(Provider.id == provider_id))
     provider = result.scalar_one_or_none()
     if not provider:
         raise HTTPException(status_code=404, detail="Provider not found")
-    
+
     update_data = provider_data.model_dump(exclude_none=True)
     for field, value in update_data.items():
         setattr(provider, field, value)
-    
+
     await db.commit()
     await db.refresh(provider)
     return provider
@@ -102,7 +106,7 @@ async def create_api_key_with_expiry(
     api_key: str,
     description: Optional[str] = None,
     expires_in_days: Optional[int] = None,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
 ):
     """
     Create API key with optional expiration in days.
@@ -111,12 +115,12 @@ async def create_api_key_with_expiry(
     expires_at = None
     if expires_in_days and expires_in_days > 0:
         expires_at = datetime.now() + timedelta(days=expires_in_days)
-    
+
     db_key = APIKey(
         key_name=key_name,
         api_key=api_key,
         description=description,
-        expires_at=expires_at
+        expires_at=expires_at,
     )
     db.add(db_key)
     await db.commit()
@@ -126,19 +130,17 @@ async def create_api_key_with_expiry(
 
 @router.put("/api-keys/{key_id}", response_model=APIKeySchema)
 async def update_api_key(
-    key_id: int, 
-    key_data: APIKeyUpdate, 
-    db: AsyncSession = Depends(get_db)
+    key_id: int, key_data: APIKeyUpdate, db: AsyncSession = Depends(get_db)
 ):
     result = await db.execute(select(APIKey).where(APIKey.id == key_id))
     api_key = result.scalar_one_or_none()
     if not api_key:
         raise HTTPException(status_code=404, detail="API key not found")
-    
+
     update_data = key_data.model_dump(exclude_none=True)
     for field, value in update_data.items():
         setattr(api_key, field, value)
-    
+
     await db.commit()
     await db.refresh(api_key)
     return api_key

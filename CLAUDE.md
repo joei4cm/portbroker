@@ -10,7 +10,7 @@ PortBroker is an API service built with FastAPI that translates between Anthropi
 
 ### Environment Setup
 ```bash
-# Install dependencies with uv
+# Install dependencies with uv (ALWAYS use uv, not venv)
 uv sync
 
 # Install development dependencies
@@ -53,11 +53,14 @@ uv run pytest
 
 # Run with coverage
 uv run pytest --cov=app
+
+# Run tests with verbose output
+uv run pytest -v
 ```
 
 ### Python Execution
 ```bash
-# Run any Python script
+# Run any Python script (ALWAYS use uv run)
 uv run python <script_name>.py
 
 # Run the application directly
@@ -66,6 +69,55 @@ uv run python run.py
 # Run development server with auto-reload
 uv run uvicorn app.main:app --reload
 ```
+
+## Debugging Ground Rules
+
+### Dependency Management
+- **ALWAYS use `uv` instead of `venv`** for dependency management
+- **NEVER create virtual environments manually** - `uv` handles this automatically
+- **ALWAYS prefix Python commands with `uv run`** to ensure proper dependency resolution
+- **Use `uv sync` to install/update dependencies** - this reads from `pyproject.toml`
+- **Use `uv sync --dev` for development dependencies** (testing, linting, formatting tools)
+
+### Debugging Workflow
+```bash
+# Check database connectivity and schema
+uv run python -c "from app.core.database import init_db; import asyncio; asyncio.run(init_db())"
+
+# Test provider configuration
+uv run python -c "from app.services.provider_service import ProviderService; from app.core.database import AsyncSessionLocal; import asyncio; async def test(): async with AsyncSessionLocal() as db: providers = await ProviderService.get_active_providers(db); print([p.name for p in providers]); asyncio.run(test())"
+
+# Debug translation service
+uv run python -c "from app.services.translation import TranslationService; print('Translation service loaded successfully')"
+
+# Run with verbose logging
+uv run uvicorn app.main:app --reload --log-level debug
+
+# Test specific endpoints
+uv run python -c "
+import httpx
+import asyncio
+async def test():
+    async with httpx.AsyncClient() as client:
+        resp = await client.get('http://localhost:8000/docs')
+        print(f'Status: {resp.status_code}')
+asyncio.run(test())
+"
+```
+
+### Common Debugging Scenarios
+1. **Provider connection issues**: Check `base_url` and `api_key` in database
+2. **Model mapping failures**: Verify `small_model`, `medium_model`, `big_model` fields
+3. **Database connection errors**: Validate `DATABASE_TYPE` and `DATABASE_URL` in `.env`
+4. **Translation errors**: Test with simple requests first, then complex ones
+5. **Import errors**: Run `uv sync` to ensure all dependencies are installed
+
+### Development Best Practices
+- **Always use `uv run`** for Python execution to avoid dependency conflicts
+- **Test incrementally**: Start with simple cases, then add complexity
+- **Check logs**: Use `--log-level debug` for detailed output
+- **Verify database state**: Use admin endpoints to check provider configurations
+- **Use the test suite**: Run `uv run pytest` to catch issues early
 
 ## Architecture
 
@@ -117,9 +169,15 @@ Key tables:
 ### Configuration
 
 Environment variables control:
-- Database type and connection strings
-- Server host/port
+- Database type and connection strings (`DATABASE_TYPE`, `DATABASE_URL`)
+- Server host/port (`HOST`, `PORT`)
 - Default provider settings
-- Security configuration
+- Security configuration (`SECRET_KEY`)
+- Supabase integration (`SUPABASE_URL`, `SUPABASE_KEY`)
 
 The application uses `pydantic-settings` for configuration management with `.env` file support.
+
+#### Supported Database Types:
+- **SQLite** (default): `DATABASE_TYPE=sqlite`
+- **PostgreSQL**: `DATABASE_TYPE=postgresql` 
+- **Supabase**: `DATABASE_TYPE=supabase`

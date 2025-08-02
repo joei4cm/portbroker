@@ -1,17 +1,28 @@
-from pydantic import BaseModel, Field
-from typing import Optional, List, Dict, Any
 from datetime import datetime
+from typing import Any, Dict, List, Optional
+
+from pydantic import BaseModel, Field
 
 
 class ProviderBase(BaseModel):
     name: str = Field(..., description="Provider name")
-    provider_type: str = Field(..., description="Type of provider (openai, azure, custom)")
+    provider_type: str = Field(
+        ..., description="Type of provider (openai, azure, custom)"
+    )
     base_url: str = Field(..., description="Base URL for the provider API")
     api_key: str = Field(..., description="API key for authentication")
-    model_list: Optional[List[str]] = Field(None, description="List of available models")
-    big_model: Optional[str] = Field(None, description="Model for high-complexity requests")
-    small_model: Optional[str] = Field(None, description="Model for low-complexity requests")
-    medium_model: Optional[str] = Field(None, description="Model for medium-complexity requests")
+    model_list: Optional[List[str]] = Field(
+        None, description="List of available models"
+    )
+    big_model: Optional[str] = Field(
+        None, description="Model for high-complexity requests"
+    )
+    small_model: Optional[str] = Field(
+        None, description="Model for low-complexity requests"
+    )
+    medium_model: Optional[str] = Field(
+        None, description="Model for medium-complexity requests"
+    )
     is_active: bool = Field(True, description="Whether the provider is active")
     priority: int = Field(1, description="Provider priority (higher = preferred)")
     max_tokens: Optional[int] = Field(None, description="Maximum tokens limit")
@@ -53,7 +64,9 @@ class APIKeyBase(BaseModel):
     api_key: str = Field(..., description="The actual API key")
     description: Optional[str] = Field(None, description="Description of the key")
     is_active: bool = Field(True, description="Whether the key is active")
-    expires_at: Optional[datetime] = Field(None, description="Expiration date for the API key")
+    expires_at: Optional[datetime] = Field(
+        None, description="Expiration date for the API key"
+    )
 
 
 class APIKeyCreate(APIKeyBase):

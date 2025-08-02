@@ -1,5 +1,6 @@
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase
+
 from app.core.config import settings
 
 
@@ -12,7 +13,9 @@ def get_database_url() -> str:
         return settings.database_url.replace("sqlite://", "sqlite+aiosqlite://")
     elif settings.database_type == "postgresql":
         if settings.database_url.startswith("postgresql://"):
-            return settings.database_url.replace("postgresql://", "postgresql+asyncpg://", 1)
+            return settings.database_url.replace(
+                "postgresql://", "postgresql+asyncpg://", 1
+            )
         return settings.database_url
     elif settings.database_type == "supabase":
         if settings.supabase_url and settings.supabase_key:
@@ -24,7 +27,9 @@ def get_database_url() -> str:
 
 database_url = get_database_url()
 engine = create_async_engine(database_url, echo=settings.debug)
-AsyncSessionLocal = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+AsyncSessionLocal = async_sessionmaker(
+    engine, class_=AsyncSession, expire_on_commit=False
+)
 
 
 async def get_db() -> AsyncSession:
