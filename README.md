@@ -268,11 +268,20 @@ All provider configurations support the following fields:
 
 ### Provider Best Practices
 
-1. **Priority Setup**: Assign lower numbers to preferred providers
+1. **Priority Setup**: Assign lower numbers to preferred providers (1=highest priority, 10=lowest priority)
 2. **Model Selection**: Choose appropriate model sizes for each tier
 3. **Headers**: Include required provider-specific headers (e.g., `anthropic-version`)
 4. **Testing**: Verify provider connectivity after configuration
 5. **Failover**: Configure multiple providers with different priorities
+
+### Fallback Policy
+
+The service follows a priority-based failover mechanism:
+- **Priority 1**: Tried first (highest priority)
+- **Priority 2**: Tried if priority 1 fails
+- **Priority 3+**: Tried in ascending order
+- Only active providers (`is_active=True`) are considered
+- If all providers fail, an exception is raised with the last error
 
 ### Adding Providers via API
 
@@ -333,6 +342,76 @@ uv run pytest
 # Run tests with coverage
 uv run pytest --cov=app
 ```
+
+## Admin Interface
+
+PortBroker includes a web-based admin interface for managing providers, API keys, and settings.
+
+### Accessing the Admin Interface
+
+Start the server and visit: http://localhost:8000/admin
+
+### Features
+
+#### Provider Management
+- **Create Providers**: Add new AI providers with full configuration
+- **Edit Providers**: Modify existing provider settings
+- **Toggle Status**: Activate/deactivate providers without deletion
+- **Delete Providers**: Remove provider configurations
+- **Priority Management**: Set provider failover order
+- **Model Mapping**: Configure small, medium, and large model mappings
+
+#### API Key Management
+- **Create API Keys**: Generate new authentication keys
+- **Edit API Keys**: Modify key properties and expiration
+- **Toggle Status**: Enable/disable API keys
+- **Delete API Keys**: Remove authentication keys
+- **Expiration Dates**: Set optional expiration dates
+- **Description**: Add descriptive information for keys
+
+#### Settings Configuration
+- **Database Type**: Switch between SQLite, PostgreSQL, and Supabase
+- **Database URL**: Configure database connection strings
+- **Supabase Integration**: Configure Supabase URL and API keys
+- **Server Settings**: Configure host, port, and debug settings
+
+### Supported Provider Types
+
+The admin interface supports all provider types:
+- OpenAI
+- Azure OpenAI
+- Anthropic
+- Google Gemini
+- Mistral AI
+- Perplexity
+- Local Ollama
+- Groq
+- OpenRouter
+- Custom providers
+
+### Frontend Stack
+
+- **TailwindCSS**: Modern utility-first CSS framework
+- **Font Awesome**: Icon library for UI elements
+- **Vanilla JavaScript**: No framework dependencies
+- **Responsive Design**: Works on desktop and mobile devices
+- **FastAPI Templates**: Server-side HTML rendering
+
+### Admin API Endpoints
+
+The admin interface uses these internal API endpoints:
+
+- `GET /admin` - Admin dashboard HTML
+- `GET /admin/providers` - List all providers
+- `POST /admin/providers` - Create new provider
+- `PUT /admin/providers/{id}` - Update provider
+- `DELETE /admin/providers/{id}` - Delete provider
+- `GET /admin/api-keys` - List all API keys
+- `POST /admin/api-keys` - Create new API key
+- `PUT /admin/api-keys/{id}` - Update API key
+- `DELETE /admin/api-keys/{id}` - Delete API key
+- `GET /admin/settings` - Get current settings
+- `POST /admin/settings` - Update settings
 
 ## Architecture
 

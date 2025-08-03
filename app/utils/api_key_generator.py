@@ -7,18 +7,18 @@ from typing import Optional
 def generate_api_key(prefix: str = "sk", length: int = 48) -> str:
     """
     Generate a secure API key in OpenAI/Anthropic format.
-    
+
     Args:
         prefix: Key prefix (default: "sk" like OpenAI)
         length: Total length of the random part (default: 48)
-    
+
     Returns:
         Generated API key string
     """
     # Generate cryptographically secure random string
     alphabet = string.ascii_letters + string.digits
-    random_part = ''.join(secrets.choice(alphabet) for _ in range(length))
-    
+    random_part = "".join(secrets.choice(alphabet) for _ in range(length))
+
     return f"{prefix}-{random_part}"
 
 
@@ -32,17 +32,19 @@ def generate_anthropic_style_api_key() -> str:
     return generate_api_key("sk-ant-api03", 48)
 
 
-def generate_expiration_date(expires_in_days: Optional[int] = None) -> Optional[datetime]:
+def generate_expiration_date(
+    expires_in_days: Optional[int] = None,
+) -> Optional[datetime]:
     """
     Generate expiration date for API key.
-    
+
     Args:
         expires_in_days: Number of days until expiration. None means no expiration.
-    
+
     Returns:
         Expiration datetime or None if no expiration
     """
     if expires_in_days is None or expires_in_days <= 0:
         return None
-    
+
     return datetime.now() + timedelta(days=expires_in_days)

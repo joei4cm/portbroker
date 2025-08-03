@@ -1,4 +1,3 @@
-import json
 from typing import Any, Dict, List, Optional
 
 import httpx
@@ -6,7 +5,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.provider import Provider
-from app.schemas.openai import ChatCompletionRequest, ChatCompletionResponse
+from app.schemas.openai import ChatCompletionRequest
 from app.services.translation import TranslationService
 
 
@@ -16,8 +15,8 @@ class ProviderService:
     async def get_active_providers(db: AsyncSession) -> List[Provider]:
         result = await db.execute(
             select(Provider)
-            .where(Provider.is_active == True)
-            .order_by(Provider.priority.desc())
+            .where(Provider.is_active.is_(True))
+            .order_by(Provider.priority.asc())
         )
         return result.scalars().all()
 

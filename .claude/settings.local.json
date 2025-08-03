@@ -37,7 +37,13 @@
       "Bash(-H \"Authorization: Bearer sk-test-real-key-123456\" )",
       "Bash(-H \"Content-Type: application/json\" )",
       "Bash(-d '{\n    \"\"key_name\"\": \"\"test-auto-key\"\",\n    \"\"description\"\": \"\"Auto-generated test key\"\",\n    \"\"expires_in_days\"\": 30,\n    \"\"is_active\"\": true\n  }')",
-      "Bash(-H \"Content-Type: application/json\" )"
+      "Bash(-H \"Content-Type: application/json\" )",
+      "Bash(mkdir:*)",
+      "Bash(kill:*)",
+      "Bash(cp:*)",
+      "mcp__serena__replace_regex",
+      "Bash(grep:*)",
+      "Bash(git add:*)"
     ],
     "deny": []
   }

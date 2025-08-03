@@ -8,4 +8,4 @@ api_router.include_router(chat.router, prefix="/v1", tags=["openai"])
 api_router.include_router(
     anthropic.router, prefix="/api/anthropic/v1", tags=["anthropic"]
 )
-api_router.include_router(providers.router, prefix="/admin", tags=["admin"])
+api_router.include_router(providers.router, prefix="/portal", tags=["portal"])

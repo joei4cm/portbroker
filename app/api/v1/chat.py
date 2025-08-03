@@ -40,9 +40,9 @@ async def stream_response(response: httpx.Response) -> AsyncGenerator[str, None]
 
 @router.post("/chat/completions")
 async def chat_completions(
-    request: ChatCompletionRequest, 
+    request: ChatCompletionRequest,
     db: AsyncSession = Depends(get_db),
-    api_key: dict = Depends(get_current_api_key)
+    api_key: dict = Depends(get_current_api_key),
 ):
     try:
         if request.stream:
@@ -71,8 +71,7 @@ async def chat_completions(
 
 @router.get("/models")
 async def list_models(
-    db: AsyncSession = Depends(get_db),
-    api_key: dict = Depends(get_current_api_key)
+    db: AsyncSession = Depends(get_db), api_key: dict = Depends(get_current_api_key)
 ):
     try:
         providers = await ProviderService.get_active_providers(db)
@@ -112,9 +111,9 @@ async def list_models(
 
 @router.get("/models/{model_id}")
 async def get_model(
-    model_id: str, 
+    model_id: str,
     db: AsyncSession = Depends(get_db),
-    api_key: dict = Depends(get_current_api_key)
+    api_key: dict = Depends(get_current_api_key),
 ):
     try:
         providers = await ProviderService.get_active_providers(db)

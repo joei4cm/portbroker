@@ -1,9 +1,13 @@
 from contextlib import asynccontextmanager
+from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
 
 from app.api.v1.router import api_router
+from app.core.auth import get_current_portal_user
 from app.core.config import settings
 from app.core.database import init_db
 
@@ -21,6 +25,11 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+# Mount static files and templates
+frontend_dir = Path(__file__).parent.parent / "frontend"
+app.mount("/static", StaticFiles(directory=str(frontend_dir / "static")), name="static")
+templates = Jinja2Templates(directory=str(frontend_dir / "templates"))
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -30,3 +39,7 @@ app.add_middleware(
 )
 
 app.include_router(api_router)
+
+
+# Note: Portal routes are handled by the providers router under /portal prefix
+# The login and dashboard routes are now in providers.py
