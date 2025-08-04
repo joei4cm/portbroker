@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.core.database import get_db
-from app.models.provider import APIKey
+from app.models.strategy import APIKey
 
 security = HTTPBearer()
 
@@ -49,6 +49,23 @@ async def get_current_api_key(
     ):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="API key has expired"
+        )
+
+    return api_key
+
+
+async def get_current_admin_api_key(
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    db: AsyncSession = Depends(get_db),
+) -> APIKey:
+    """
+    Validate API key and check if it has admin privileges.
+    """
+    api_key = await get_current_api_key(credentials, db)
+
+    if not api_key.is_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Admin access required"
         )
 
     return api_key
@@ -114,8 +131,8 @@ async def authenticate_portal_api_key(api_key: str, db: AsyncSession) -> bool:
 
 async def get_current_portal_user(
     request: Request, db: AsyncSession = Depends(get_db)
-) -> str:
-    """Get current authenticated portal user"""
+) -> dict:
+    """Get current authenticated portal user with admin info"""
     # Try to get token from Authorization header first
     auth_header = request.headers.get("Authorization")
     token = None
@@ -143,7 +160,37 @@ async def get_current_portal_user(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    return username
+    # Extract API key from token to check admin status
+    # Need to find the exact API key by checking all possible keys
+    result = await db.execute(select(APIKey))
+    all_keys = result.scalars().all()
+
+    key_record = None
+    for key in all_keys:
+        if username == f"portal_user_{key.api_key[:20]}":
+            key_record = key
+            break
+
+    return {
+        "username": username,
+        "is_admin": key_record.is_admin if key_record else False,
+        "api_key": key_record.api_key if key_record else None,
+    }
+
+
+async def get_current_admin_user(
+    request: Request, db: AsyncSession = Depends(get_db)
+) -> dict:
+    """Get current authenticated admin user"""
+    user_info = await get_current_portal_user(request, db)
+
+    if not user_info["is_admin"]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin access required",
+        )
+
+    return user_info
 
 
 async def login_for_access_token(api_key: str, db: AsyncSession) -> dict:

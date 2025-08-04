@@ -48,7 +48,7 @@ uv run flake8 .
 
 ### Testing
 ```bash
-# Run tests
+# Run all tests
 uv run pytest
 
 # Run with coverage
@@ -56,7 +56,52 @@ uv run pytest --cov=app
 
 # Run tests with verbose output
 uv run pytest -v
+
+# Run specific test file
+uv run pytest tests/test_portal.py
+
+# Run specific test class
+uv run pytest tests/test_portal.py::TestPortalAuth
+
+# Run specific test method
+uv run pytest tests/test_portal.py::TestPortalAuth::test_portal_login_page
+
+# Run tests with coverage report
+uv run pytest --cov=app --cov-report=html
 ```
+
+### Testing Guidelines
+
+**IMPORTANT**: Always run tests after making changes to ensure functionality is preserved:
+
+1. **Before committing changes**: Run `uv run pytest` to verify all tests pass
+2. **After API changes**: Run relevant test files and ensure new functionality is tested
+3. **After UI changes**: Run portal tests to verify authentication and permissions work
+4. **After database changes**: Run all tests to ensure data integrity
+
+**Test Coverage Requirements**:
+- **API Endpoints**: All endpoints must have tests for success and error cases
+- **Authentication**: Both admin and non-admin user scenarios must be tested
+- **Portal UI**: Login, navigation, and role-based access must be tested
+- **Database Operations**: CRUD operations must be tested with proper cleanup
+- **Error Handling**: All error paths must have corresponding tests
+
+**Test Structure**:
+- `test_api.py`: Core API functionality and endpoints
+- `test_portal.py`: Portal authentication and UI functionality
+- `test_providers.py`: Provider management and operations
+- `test_api_keys.py`: API key management and authentication
+- `test_provider_service.py`: Business logic for provider operations
+- `test_translation.py`: API translation service
+- `test_utils.py`: Utility functions and helpers
+
+**Testing Best Practices**:
+- Use fixtures for common test data (providers, API keys, etc.)
+- Test both success and failure scenarios
+- Verify role-based access controls (admin vs non-admin)
+- Clean up test data to avoid test pollution
+- Use async testing for database operations
+- Test authentication and authorization separately
 
 ### Python Execution
 ```bash
@@ -118,6 +163,8 @@ asyncio.run(test())
 - **Check logs**: Use `--log-level debug` for detailed output
 - **Verify database state**: Use admin endpoints to check provider configurations
 - **Use the test suite**: Run `uv run pytest` to catch issues early
+- **Run tests before committing**: Ensure all functionality works after changes
+- **Write tests for new features**: All new functionality must have corresponding tests
 
 ## Architecture
 

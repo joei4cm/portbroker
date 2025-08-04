@@ -41,5 +41,17 @@ app.add_middleware(
 app.include_router(api_router)
 
 
+@app.get("/")
+async def root():
+    """Root endpoint"""
+    return {"message": "PortBroker API", "version": "0.1.0"}
+
+
+@app.get("/health")
+async def health_check():
+    """Health check endpoint"""
+    return {"status": "healthy"}
+
+
 # Note: Portal routes are handled by the providers router under /portal prefix
 # The login and dashboard routes are now in providers.py

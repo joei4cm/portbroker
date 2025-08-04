@@ -121,9 +121,6 @@ async def check_database_compatibility(session: AsyncSession) -> bool:
             "small_model",
             "medium_model",
             "is_active",
-            "priority",
-            "max_tokens",
-            "temperature_default",
             "headers",
             "created_at",
             "updated_at",
@@ -135,6 +132,7 @@ async def check_database_compatibility(session: AsyncSession) -> bool:
             "api_key",
             "description",
             "is_active",
+            "is_admin",
             "expires_at",
             "created_at",
             "updated_at",
@@ -176,6 +174,9 @@ async def get_database_info(session: AsyncSession) -> dict:
 
 async def init_db():
     """Initialize database with compatibility checking"""
+    # Import models to ensure they're registered with SQLAlchemy
+    from app.models.strategy import APIKey, ModelStrategy, Provider
+
     async with AsyncSessionLocal() as session:
         db_info = await get_database_info(session)
 
@@ -185,6 +186,9 @@ async def init_db():
             async with engine.begin() as conn:
                 await conn.run_sync(Base.metadata.create_all)
             print("Database initialized successfully.")
+
+            # Create default admin key
+            await create_default_admin_key(session)
         else:
             # Database exists, check compatibility
             print(
@@ -195,6 +199,8 @@ async def init_db():
 
             if is_compatible:
                 print("Database is compatible. Using existing data.")
+                # Check if admin key exists, create if not
+                await create_default_admin_key(session)
             else:
                 print(
                     "Database schema is incompatible. Please backup data and recreate database."
@@ -202,3 +208,43 @@ async def init_db():
                 raise RuntimeError(
                     "Incompatible database schema. Please backup your data and delete the database file to start fresh."
                 )
+
+
+async def create_default_admin_key(session: AsyncSession):
+    """Create default admin key if none exists"""
+    from sqlalchemy import select
+
+    # Import all models to ensure they're registered with SQLAlchemy
+    from app.models.strategy import APIKey, ModelStrategy, Provider
+    from app.utils.api_key_generator import generate_openai_style_api_key
+
+    # Check if any admin key exists
+    result = await session.execute(select(APIKey))
+    existing_keys = result.scalars().all()
+
+    if not existing_keys:
+        # Generate admin key
+        admin_key = generate_openai_style_api_key()
+
+        # Create admin key record
+        db_key = APIKey(
+            key_name="admin_default",
+            api_key=admin_key,
+            description="Default admin key for portal access",
+            is_active=True,
+            is_admin=True,  # Admin privileges
+            expires_at=None,  # Never expires
+        )
+
+        session.add(db_key)
+        await session.commit()
+
+        print("=" * 60)
+        print("🔑 DEFAULT ADMIN KEY CREATED")
+        print("=" * 60)
+        print(f"Admin Key: {admin_key}")
+        print("This key is required to access the portal at /portal/login")
+        print("Keep this key secure - it provides full administrative access!")
+        print("=" * 60)
+    else:
+        print(f"Found {len(existing_keys)} existing API keys. No admin key created.")

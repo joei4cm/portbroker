@@ -11,20 +11,21 @@ class ProviderBase(BaseModel):
     )
     base_url: str = Field(..., description="Base URL for the provider API")
     api_key: str = Field(..., description="API key for authentication")
-    model_list: Optional[List[str]] = Field(
-        None, description="List of available models"
-    )
+    model_list: List[str] = Field(..., description="List of available models")
     big_model: Optional[str] = Field(
-        None, description="Model for high-complexity requests"
+        None,
+        description="Model for high-complexity requests (deprecated, use model_list)",
     )
     small_model: Optional[str] = Field(
-        None, description="Model for low-complexity requests"
+        None,
+        description="Model for low-complexity requests (deprecated, use model_list)",
     )
     medium_model: Optional[str] = Field(
-        None, description="Model for medium-complexity requests"
+        None,
+        description="Model for medium-complexity requests (deprecated, use model_list)",
     )
     is_active: bool = Field(True, description="Whether the provider is active")
-    priority: int = Field(1, description="Provider priority (higher = preferred)")
+    # Note: Strategy ID removed - now strategies reference providers
     max_tokens: Optional[int] = Field(None, description="Maximum tokens limit")
     temperature_default: Optional[str] = Field(None, description="Default temperature")
     headers: Optional[Dict[str, Any]] = Field(None, description="Additional headers")
@@ -64,6 +65,7 @@ class APIKeyBase(BaseModel):
     api_key: str = Field(..., description="The actual API key")
     description: Optional[str] = Field(None, description="Description of the key")
     is_active: bool = Field(True, description="Whether the key is active")
+    is_admin: bool = Field(False, description="Whether the key has admin privileges")
     expires_at: Optional[datetime] = Field(
         None, description="Expiration date for the API key"
     )
@@ -80,6 +82,7 @@ class APIKeyAutoCreate(BaseModel):
         None, description="Number of days until expiration (None = no expiration)"
     )
     is_active: bool = Field(True, description="Whether the key is active")
+    is_admin: bool = Field(False, description="Whether the key has admin privileges")
 
 
 class APIKeyUpdate(BaseModel):
@@ -87,6 +90,7 @@ class APIKeyUpdate(BaseModel):
     api_key: Optional[str] = None
     description: Optional[str] = None
     is_active: Optional[bool] = None
+    is_admin: Optional[bool] = None
     expires_at: Optional[datetime] = None
 
 

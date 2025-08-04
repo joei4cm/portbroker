@@ -7,14 +7,17 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.auth import get_current_portal_user, login_for_access_token
+from app.core.auth import (
+    get_current_admin_user,
+    get_current_portal_user,
+    login_for_access_token,
+)
 from app.core.config import settings
 from app.core.database import get_db
-from app.models.provider import APIKey, Provider
+from app.models.strategy import APIKey, Provider
 from app.schemas.provider import APIKey as APIKeySchema
 from app.schemas.provider import (
     APIKeyAutoCreate,
-    APIKeyCreate,
     APIKeyUpdate,
 )
 from app.schemas.provider import Provider as ProviderSchema
@@ -31,7 +34,9 @@ router = APIRouter()
 templates = Jinja2Templates(directory="frontend/templates")
 
 
-async def get_current_portal_user_or_redirect(request: Request, db: AsyncSession = Depends(get_db)):
+async def get_current_portal_user_or_redirect(
+    request: Request, db: AsyncSession = Depends(get_db)
+):
     """Get current authenticated portal user or redirect to login"""
     # Try to get token from Authorization header first
     auth_header = request.headers.get("Authorization")
@@ -49,6 +54,7 @@ async def get_current_portal_user_or_redirect(request: Request, db: AsyncSession
 
     # Verify the token
     from app.core.auth import verify_token
+
     username = await verify_token(token)
 
     if username is None:
@@ -119,6 +125,7 @@ async def portal_dashboard(request: Request, db: AsyncSession = Depends(get_db))
 
     # Verify the token
     from app.core.auth import verify_token
+
     username = await verify_token(token)
 
     if username is None:
@@ -131,18 +138,43 @@ async def portal_dashboard(request: Request, db: AsyncSession = Depends(get_db))
 @router.get("/providers", response_model=List[ProviderSchema])
 async def list_providers(
     db: AsyncSession = Depends(get_db),
-    current_user: str = Depends(get_current_portal_user),
+    current_user: dict = Depends(get_current_portal_user),
 ):
     result = await db.execute(select(Provider))
     providers = result.scalars().all()
     return providers
 
 
+@router.get("/models")
+async def get_all_models(
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_portal_user),
+):
+    """Get all available models from all active providers"""
+    result = await db.execute(select(Provider).where(Provider.is_active.is_(True)))
+    providers = result.scalars().all()
+
+    all_models = []
+    for provider in providers:
+        if provider.model_list:
+            for model in provider.model_list:
+                all_models.append(
+                    {
+                        "model": model,
+                        "provider": provider.name,
+                        "provider_id": provider.id,
+                        "provider_type": provider.provider_type,
+                    }
+                )
+
+    return {"models": all_models}
+
+
 @router.get("/providers/{provider_id}", response_model=ProviderSchema)
 async def get_provider(
     provider_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: str = Depends(get_current_portal_user),
+    current_user: dict = Depends(get_current_portal_user),
 ):
     result = await db.execute(select(Provider).where(Provider.id == provider_id))
     provider = result.scalar_one_or_none()
@@ -151,11 +183,31 @@ async def get_provider(
     return provider
 
 
+@router.get("/providers/{provider_id}/models")
+async def get_provider_models(
+    provider_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_portal_user),
+):
+    """Get available models from a specific provider"""
+    result = await db.execute(select(Provider).where(Provider.id == provider_id))
+    provider = result.scalar_one_or_none()
+    if not provider:
+        raise HTTPException(status_code=404, detail="Provider not found")
+
+    # Return models from provider's model_list
+    return {
+        "provider_id": provider_id,
+        "provider_name": provider.name,
+        "models": provider.model_list or [],
+    }
+
+
 @router.post("/providers", response_model=ProviderSchema)
 async def create_provider(
     provider_data: ProviderCreate,
     db: AsyncSession = Depends(get_db),
-    current_user: str = Depends(get_current_portal_user),
+    current_user: dict = Depends(get_current_admin_user),
 ):
     db_provider = Provider(**provider_data.model_dump())
     db.add(db_provider)
@@ -169,7 +221,7 @@ async def update_provider(
     provider_id: int,
     provider_data: ProviderUpdate,
     db: AsyncSession = Depends(get_db),
-    current_user: str = Depends(get_current_portal_user),
+    current_user: dict = Depends(get_current_admin_user),
 ):
     result = await db.execute(select(Provider).where(Provider.id == provider_id))
     provider = result.scalar_one_or_none()
@@ -189,7 +241,7 @@ async def update_provider(
 async def delete_provider(
     provider_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: str = Depends(get_current_portal_user),
+    current_user: dict = Depends(get_current_admin_user),
 ):
     result = await db.execute(delete(Provider).where(Provider.id == provider_id))
     if result.rowcount == 0:
@@ -201,7 +253,7 @@ async def delete_provider(
 @router.get("/api-keys", response_model=List[APIKeySchema])
 async def list_api_keys(
     db: AsyncSession = Depends(get_db),
-    current_user: str = Depends(get_current_portal_user),
+    current_user: dict = Depends(get_current_portal_user),
 ):
     result = await db.execute(select(APIKey))
     keys = result.scalars().all()
@@ -212,7 +264,7 @@ async def list_api_keys(
 async def get_api_key(
     key_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: str = Depends(get_current_portal_user),
+    current_user: dict = Depends(get_current_portal_user),
 ):
     result = await db.execute(select(APIKey).where(APIKey.id == key_id))
     api_key = result.scalar_one_or_none()
@@ -223,25 +275,12 @@ async def get_api_key(
 
 @router.post("/api-keys", response_model=APIKeySchema)
 async def create_api_key(
-    key_data: APIKeyCreate,
-    db: AsyncSession = Depends(get_db),
-    current_user: str = Depends(get_current_portal_user),
-):
-    db_key = APIKey(**key_data.model_dump())
-    db.add(db_key)
-    await db.commit()
-    await db.refresh(db_key)
-    return db_key
-
-
-@router.post("/api-keys/auto-generate", response_model=APIKeySchema)
-async def auto_generate_api_key(
     key_data: APIKeyAutoCreate,
     db: AsyncSession = Depends(get_db),
-    current_user: str = Depends(get_current_portal_user),
+    current_user: dict = Depends(get_current_admin_user),
 ):
     """
-    Auto-generate an API key in OpenAI/Anthropic style.
+    Create API key with auto-generated key content.
     The API key will be automatically generated and returned in the response.
     """
     # Generate the API key
@@ -256,6 +295,7 @@ async def auto_generate_api_key(
         api_key=generated_key,
         description=key_data.description,
         is_active=key_data.is_active,
+        is_admin=key_data.is_admin,
         expires_at=expires_at,
     )
 
@@ -273,7 +313,7 @@ async def create_api_key_with_expiry(
     description: Optional[str] = None,
     expires_in_days: Optional[int] = None,
     db: AsyncSession = Depends(get_db),
-    current_user: str = Depends(get_current_portal_user),
+    current_user: dict = Depends(get_current_admin_user),
 ):
     """
     Create API key with optional expiration in days.
@@ -300,7 +340,7 @@ async def update_api_key(
     key_id: int,
     key_data: APIKeyUpdate,
     db: AsyncSession = Depends(get_db),
-    current_user: str = Depends(get_current_portal_user),
+    current_user: dict = Depends(get_current_admin_user),
 ):
     result = await db.execute(select(APIKey).where(APIKey.id == key_id))
     api_key = result.scalar_one_or_none()
@@ -320,7 +360,7 @@ async def update_api_key(
 async def delete_api_key(
     key_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: str = Depends(get_current_portal_user),
+    current_user: dict = Depends(get_current_admin_user),
 ):
     result = await db.execute(delete(APIKey).where(APIKey.id == key_id))
     if result.rowcount == 0:
@@ -329,8 +369,14 @@ async def delete_api_key(
     return {"detail": "API key deleted successfully"}
 
 
+@router.get("/user-info")
+async def get_user_info(current_user: dict = Depends(get_current_portal_user)):
+    """Get current user information including admin status"""
+    return {"username": current_user["username"], "is_admin": current_user["is_admin"]}
+
+
 @router.get("/settings")
-async def get_settings(current_user: str = Depends(get_current_portal_user)):
+async def get_settings(current_user: dict = Depends(get_current_portal_user)):
     """Get current settings configuration"""
     return {
         "database_type": settings.database_type,
@@ -347,7 +393,7 @@ async def get_settings(current_user: str = Depends(get_current_portal_user)):
 
 @router.post("/settings")
 async def update_settings(
-    settings_data: Dict[str, Any], current_user: str = Depends(get_current_portal_user)
+    settings_data: Dict[str, Any], current_user: dict = Depends(get_current_admin_user)
 ):
     """Update settings configuration"""
     # Note: In a production environment, you would want to:

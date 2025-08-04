@@ -24,14 +24,57 @@ class TranslationService:
     def map_claude_model_to_provider_model(
         claude_model: str, provider_config: Dict[str, Any]
     ) -> str:
+        model_list = provider_config.get("model_list", [])
+
+        # Fallback to old model fields for backward compatibility
         if "haiku" in claude_model.lower():
-            return provider_config.get("small_model", "gpt-4o-mini")
+            return provider_config.get(
+                "small_model"
+            ) or TranslationService._select_model_from_list(model_list, "small")
         elif "sonnet" in claude_model.lower():
-            return provider_config.get("medium_model", "gpt-4o")
+            return provider_config.get(
+                "medium_model"
+            ) or TranslationService._select_model_from_list(model_list, "medium")
         elif "opus" in claude_model.lower():
-            return provider_config.get("big_model", "gpt-4o")
+            return provider_config.get(
+                "big_model"
+            ) or TranslationService._select_model_from_list(model_list, "big")
         else:
-            return provider_config.get("medium_model", "gpt-4o")
+            return provider_config.get(
+                "medium_model"
+            ) or TranslationService._select_model_from_list(model_list, "medium")
+
+    @staticmethod
+    def _select_model_from_list(model_list: List[str], size_category: str) -> str:
+        """Select appropriate model from model_list based on size category"""
+        if not model_list:
+            # Default fallback models
+            defaults = {"small": "gpt-4o-mini", "medium": "gpt-4o", "big": "gpt-4o"}
+            return defaults.get(size_category, "gpt-4o")
+
+        # Common model patterns by size
+        small_patterns = ["mini", "small", "haiku", "3.5", "4o-mini"]
+        medium_patterns = ["4o", "sonnet", "medium", "turbo"]
+        big_patterns = ["4", "gpt-4", "opus", "large", "preview"]
+
+        # Filter models by size category
+        if size_category == "small":
+            candidates = [
+                m for m in model_list if any(p in m.lower() for p in small_patterns)
+            ]
+        elif size_category == "medium":
+            candidates = [
+                m for m in model_list if any(p in m.lower() for p in medium_patterns)
+            ]
+        elif size_category == "big":
+            candidates = [
+                m for m in model_list if any(p in m.lower() for p in big_patterns)
+            ]
+        else:
+            candidates = model_list
+
+        # Return first candidate or fallback to first model in list
+        return candidates[0] if candidates else model_list[0]
 
     @staticmethod
     def openai_to_anthropic(openai_request: ChatCompletionRequest) -> AnthropicRequest:

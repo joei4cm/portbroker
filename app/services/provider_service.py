@@ -4,7 +4,7 @@ import httpx
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.provider import Provider
+from app.models.strategy import Provider
 from app.schemas.openai import ChatCompletionRequest
 from app.services.translation import TranslationService
 
@@ -16,7 +16,7 @@ class ProviderService:
         result = await db.execute(
             select(Provider)
             .where(Provider.is_active.is_(True))
-            .order_by(Provider.priority.asc())
+            .order_by(Provider.name.asc())
         )
         return result.scalars().all()
 
@@ -42,6 +42,7 @@ class ProviderService:
         mapped_model = TranslationService.map_claude_model_to_provider_model(
             request.model,
             {
+                "model_list": provider.model_list,
                 "small_model": provider.small_model,
                 "medium_model": provider.medium_model,
                 "big_model": provider.big_model,

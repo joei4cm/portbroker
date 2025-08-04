@@ -43,7 +43,10 @@
       "Bash(cp:*)",
       "mcp__serena__replace_regex",
       "Bash(grep:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(-H \"Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJwb3J0YWxfdXNlcl9zay1yOENXZEJ2OHI2VlYxVTBNOCIsImV4cCI6MTc1NDIxNDUwNH0.3atkYIlwwsOPOPXjHn-envwd5UZk5uyboe6i-dIiJFA\")"
     ],
     "deny": []
   }
