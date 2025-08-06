@@ -23,6 +23,7 @@ dependencies = [
     "requests>=2.32.4",
     "jinja2>=3.1.0",
     "pytest-cov>=6.2.1",
+    "playwright>=1.54.0",
 ]
 readme = "README.md"
 requires-python = ">=3.11"

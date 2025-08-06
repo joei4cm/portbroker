@@ -71,16 +71,22 @@ SUPABASE_KEY=your-anon-key
 - `POST /api/anthropic/v1/messages` - Anthropic messages endpoint
 
 ### Provider Management
-- `GET /admin/providers` - List all providers
-- `POST /admin/providers` - Create new provider
-- `PUT /admin/providers/{id}` - Update provider
-- `DELETE /admin/providers/{id}` - Delete provider
+- `GET /api/portal/providers` - List all providers
+- `POST /api/portal/providers` - Create new provider
+- `PUT /api/portal/providers/{id}` - Update provider
+- `DELETE /api/portal/providers/{id}` - Delete provider
 
 ### API Key Management
-- `GET /admin/api-keys` - List API keys
-- `POST /admin/api-keys` - Create API key
-- `PUT /admin/api-keys/{id}` - Update API key
-- `DELETE /admin/api-keys/{id}` - Delete API key
+- `GET /api/portal/api-keys` - List API keys
+- `POST /api/portal/api-keys` - Create API key
+- `PUT /api/portal/api-keys/{id}` - Update API key
+- `DELETE /api/portal/api-keys/{id}` - Delete API key
+
+### Strategy Management
+- `GET /api/portal/strategies` - List all strategies
+- `POST /api/portal/strategies` - Create new strategy
+- `PUT /api/portal/strategies/{id}` - Update strategy
+- `DELETE /api/portal/strategies/{id}` - Delete strategy
 
 ## Provider Configuration
 
@@ -287,8 +293,9 @@ The service follows a priority-based failover mechanism:
 
 ```bash
 # Create a new provider
-curl -X POST http://localhost:8000/admin/providers \
+curl -X POST http://localhost:8000/api/portal/providers \
   -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_ADMIN_API_KEY" \
   -d '{
     "name": "My Provider",
     "provider_type": "openai",
@@ -302,11 +309,13 @@ curl -X POST http://localhost:8000/admin/providers \
   }'
 
 # List all providers
-curl http://localhost:8000/admin/providers
+curl http://localhost:8000/api/portal/providers \
+  -H "Authorization: Bearer YOUR_ADMIN_API_KEY"
 
 # Update a provider
-curl -X PUT http://localhost:8000/admin/providers/1 \
+curl -X PUT http://localhost:8000/api/portal/providers/1 \
   -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_ADMIN_API_KEY" \
   -d '{"is_active": false}'
 ```
 
@@ -343,13 +352,17 @@ uv run pytest
 uv run pytest --cov=app
 ```
 
-## Admin Interface
+## Admin Portal
 
-PortBroker includes a web-based admin interface for managing providers, API keys, and settings.
+PortBroker includes a Vue.js-based admin portal for managing providers, API keys, and settings.
 
-### Accessing the Admin Interface
+### Accessing the Admin Portal
 
-Start the server and visit: http://localhost:8000/admin
+Start the server and visit: http://localhost:8000/portal
+
+### Authentication
+
+The portal requires an admin API key for authentication. A default admin key is automatically created when the database is initialized.
 
 ### Features
 
@@ -369,6 +382,12 @@ Start the server and visit: http://localhost:8000/admin
 - **Expiration Dates**: Set optional expiration dates
 - **Description**: Add descriptive information for keys
 
+#### Strategy Management
+- **Create Strategies**: Define model routing strategies
+- **Edit Strategies**: Modify strategy configurations
+- **Provider Mapping**: Map providers to strategies with model assignments
+- **Fallback Configuration**: Configure failover behavior
+
 #### Settings Configuration
 - **Database Type**: Switch between SQLite, PostgreSQL, and Supabase
 - **Database URL**: Configure database connection strings
@@ -377,7 +396,7 @@ Start the server and visit: http://localhost:8000/admin
 
 ### Supported Provider Types
 
-The admin interface supports all provider types:
+The admin portal supports all provider types:
 - OpenAI
 - Azure OpenAI
 - Anthropic
@@ -391,27 +410,31 @@ The admin interface supports all provider types:
 
 ### Frontend Stack
 
+- **Vue.js 3**: Modern JavaScript framework
 - **TailwindCSS**: Modern utility-first CSS framework
 - **Font Awesome**: Icon library for UI elements
-- **Vanilla JavaScript**: No framework dependencies
+- **Axios**: HTTP client for API requests
 - **Responsive Design**: Works on desktop and mobile devices
-- **FastAPI Templates**: Server-side HTML rendering
 
-### Admin API Endpoints
+### Portal API Endpoints
 
-The admin interface uses these internal API endpoints:
+The admin portal uses these API endpoints:
 
-- `GET /admin` - Admin dashboard HTML
-- `GET /admin/providers` - List all providers
-- `POST /admin/providers` - Create new provider
-- `PUT /admin/providers/{id}` - Update provider
-- `DELETE /admin/providers/{id}` - Delete provider
-- `GET /admin/api-keys` - List all API keys
-- `POST /admin/api-keys` - Create new API key
-- `PUT /admin/api-keys/{id}` - Update API key
-- `DELETE /admin/api-keys/{id}` - Delete API key
-- `GET /admin/settings` - Get current settings
-- `POST /admin/settings` - Update settings
+- `POST /api/portal/login` - User authentication
+- `GET /api/portal/providers` - List all providers
+- `POST /api/portal/providers` - Create new provider
+- `PUT /api/portal/providers/{id}` - Update provider
+- `DELETE /api/portal/providers/{id}` - Delete provider
+- `GET /api/portal/api-keys` - List all API keys
+- `POST /api/portal/api-keys` - Create new API key
+- `PUT /api/portal/api-keys/{id}` - Update API key
+- `DELETE /api/portal/api-keys/{id}` - Delete API key
+- `GET /api/portal/strategies` - List all strategies
+- `POST /api/portal/strategies` - Create new strategy
+- `PUT /api/portal/strategies/{id}` - Update strategy
+- `DELETE /api/portal/strategies/{id}` - Delete strategy
+- `GET /api/portal/settings` - Get current settings
+- `POST /api/portal/settings` - Update settings
 
 ## Architecture
 

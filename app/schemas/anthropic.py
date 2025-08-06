@@ -1,6 +1,6 @@
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, List, Literal, Optional, Union
+from typing import Any, Dict, Generator, List, Literal, Optional, Union
 
 from pydantic import BaseModel, Field
 
@@ -95,11 +95,13 @@ class ContentBlock(BaseModel):
     model_config = {"extra": "allow"}
 
     @classmethod
-    def __get_validators__(cls):
+    def __get_validators__(cls) -> Generator[Any, None, None]:
         yield cls.validate
 
     @classmethod
-    def validate(cls, v):
+    def validate(
+        cls, v: Any
+    ) -> Union["TextContent", "ImageContent", "ToolUseContent", "ToolResultContent"]:
         if isinstance(v, dict):
             content_type = v.get("type")
             if content_type == "text":

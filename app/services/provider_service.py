@@ -53,7 +53,9 @@ class ProviderService:
 
         request_data = request.model_dump(exclude_none=True)
 
-        async with httpx.AsyncClient(timeout=300.0) as client:
+        async with httpx.AsyncClient(
+            timeout=300.0, verify=provider.verify_ssl
+        ) as client:
             if stream:
                 response = await client.post(
                     f"{provider.base_url.rstrip('/')}/chat/completions",

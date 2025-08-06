@@ -1,0 +1,22 @@
+{
+  "name": "portbroker-portal",
+  "version": "1.0.0",
+  "description": "PortBroker Portal UI",
+  "main": "index.js",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "vue": "^3.3.4",
+    "vue-router": "^4.2.4",
+    "ant-design-vue": "^4.0.0",
+    "axios": "^1.5.0",
+    "@ant-design/icons-vue": "^7.0.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^4.3.4",
+    "vite": "^4.4.9"
+  }
+}

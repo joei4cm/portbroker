@@ -26,30 +26,61 @@ class ModelStrategy(Base):
     # Strategy type: 'anthropic' or 'openai'
     strategy_type = Column(String(20), nullable=False)
 
-    # Model mappings for different tiers
-    high_tier_models = Column(JSON, nullable=False, default=list)  # Primary models
-    medium_tier_models = Column(JSON, nullable=False, default=list)  # Secondary models
-    low_tier_models = Column(JSON, nullable=False, default=list)  # Fallback models
-
     # Fallback configuration
     fallback_enabled = Column(Boolean, nullable=False, default=True)
-    fallback_order = Column(JSON, nullable=False, default=["high", "medium", "low"])
-
-    # Provider selection
-    provider_priority = Column(
-        JSON, nullable=False, default=list
-    )  # List of provider IDs in priority order
+    fallback_order = Column(JSON, nullable=False, default=["large", "medium", "small"])
 
     # Metadata
     is_active = Column(Boolean, nullable=False, default=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
-    # Note: Provider relationship removed - now strategies reference providers via provider_priority
+    # Relationships
+    provider_mappings = relationship(
+        "StrategyProviderMapping",
+        back_populates="strategy",
+        cascade="all, delete-orphan",
+    )
+
+
+class StrategyProviderMapping(Base):
+    """Mapping between strategy and provider with specific model configurations"""
+
+    __tablename__ = "strategy_provider_mappings"
+
+    id = Column(Integer, primary_key=True, index=True)
+    strategy_id = Column(Integer, ForeignKey("model_strategies.id"), nullable=False)
+    provider_id = Column(Integer, ForeignKey("providers.id"), nullable=False)
+
+    # Model mappings for different tiers (for Anthropic strategies)
+    large_models = Column(JSON, nullable=False, default=list)  # Large/primary models
+    medium_models = Column(
+        JSON, nullable=False, default=list
+    )  # Medium/secondary models
+    small_models = Column(JSON, nullable=False, default=list)  # Small/fallback models
+
+    # Single model selection (for OpenAI strategies)
+    selected_models = Column(
+        JSON, nullable=False, default=list
+    )  # Selected models for this provider
+
+    # Priority for this provider in the strategy (lower number = higher priority)
+    priority = Column(Integer, nullable=False, default=1)
+
+    # Whether this provider is active in this strategy
+    is_active = Column(Boolean, nullable=False, default=True)
+
+    # Metadata
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    # Relationships
+    strategy = relationship("ModelStrategy", back_populates="provider_mappings")
+    provider = relationship("Provider")
 
 
 class Provider(Base):
-    """Provider model with strategy relationship"""
+    """Provider model"""
 
     __tablename__ = "providers"
 
@@ -69,9 +100,8 @@ class Provider(Base):
     headers = Column(JSON, nullable=True)
     max_tokens = Column(Integer, nullable=True)
     temperature_default = Column(String(20), nullable=True)
+    verify_ssl = Column(Boolean, nullable=False, default=True)
     is_active = Column(Boolean, nullable=False, default=True)
-
-    # Note: Strategy relationship removed - now strategies reference providers
 
     # Metadata
     created_at = Column(DateTime(timezone=True), server_default=func.now())

@@ -6,6 +6,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 PortBroker is an API service built with FastAPI that translates between Anthropic and OpenAI API formats while managing multiple AI providers. It acts as a universal API gateway that allows clients to use either API format seamlessly, with intelligent model mapping and provider failover.
 
+The system includes both a backend API service and a Vue.js-based portal interface for comprehensive provider and strategy management.
+
 ## Development Commands
 
 ### Environment Setup
@@ -68,6 +70,12 @@ uv run pytest tests/test_portal.py::TestPortalAuth::test_portal_login_page
 
 # Run tests with coverage report
 uv run pytest --cov=app --cov-report=html
+
+# Run tests by category
+uv run pytest -m unit          # Unit tests only
+uv run pytest -m integration   # Integration tests only
+uv run pytest -m api           # API tests only
+uv run pytest -m portal        # Portal tests only
 ```
 
 ### Testing Guidelines
@@ -114,6 +122,21 @@ uv run python run.py
 # Run development server with auto-reload
 uv run uvicorn app.main:app --reload
 ```
+
+## Portal Authentication
+
+**IMPORTANT**: The portal uses JWT token authentication, not direct API key authentication. When working with the portal:
+
+1. **Login via web interface**: Access `/portal` and use the login form
+2. **JWT tokens are stored**: After login, JWT tokens are stored in localStorage and used for API requests
+3. **API key authentication is separate**: API keys are used for external API access, not portal login
+4. **Admin vs non-admin users**: Portal permissions are controlled by JWT claims, not API keys
+
+### Debugging Authentication Issues
+- Check browser console for authentication errors
+- Verify JWT token is present in localStorage
+- Use browser dev tools to inspect network requests for Authorization headers
+- Admin users have additional permissions for provider management
 
 ## Debugging Ground Rules
 

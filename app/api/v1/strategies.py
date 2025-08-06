@@ -1,23 +1,66 @@
 from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth import get_current_admin_user, get_current_portal_user
 from app.core.database import get_db
+from app.models.strategy import Provider
 from app.schemas.strategy import (
     ModelMappingRequest,
     ModelMappingResponse,
     ModelStrategy,
     ModelStrategyCreate,
     ModelStrategyUpdate,
+    StrategyProviderMappingCreate,
+    StrategyProviderMappingUpdate,
 )
 from app.services.strategy_service import StrategyService
 
 router = APIRouter()
 
 
-@router.get("/strategies", response_model=List[ModelStrategy])
+def convert_old_strategy_to_new(old_data: dict) -> ModelStrategyCreate:
+    """Convert old strategy format to new format with provider mappings"""
+    provider_id = old_data.pop("provider_id", None)
+
+    # Create provider mapping if provider_id is provided
+    provider_mappings = []
+    if provider_id:
+        if old_data.get("strategy_type") == "anthropic":
+            mapping = StrategyProviderMappingCreate(
+                provider_id=provider_id,
+                large_models=old_data.get("large_models", []),
+                medium_models=old_data.get("medium_models", []),
+                small_models=old_data.get("small_models", []),
+                selected_models=[],
+                priority=1,
+                is_active=True,
+            )
+        else:  # openai
+            mapping = StrategyProviderMappingCreate(
+                provider_id=provider_id,
+                large_models=[],
+                medium_models=[],
+                small_models=[],
+                selected_models=old_data.get(
+                    "large_models", []
+                ),  # OpenAI uses selected_models
+                priority=1,
+                is_active=True,
+            )
+        provider_mappings.append(mapping)
+
+    # Remove old model fields from strategy data
+    for field in ["large_models", "medium_models", "small_models"]:
+        old_data.pop(field, None)
+
+    # Create new strategy with provider mappings
+    return ModelStrategyCreate(**old_data, provider_mappings=provider_mappings)
+
+
+@router.get("/strategies")
 async def get_strategies(
     strategy_type: Optional[str] = Query(
         None, description="Filter by strategy type (anthropic or openai)"
@@ -29,7 +72,7 @@ async def get_strategies(
     return await StrategyService.get_strategies(db, strategy_type)
 
 
-@router.get("/strategies/{strategy_id}", response_model=ModelStrategy)
+@router.get("/strategies/{strategy_id}")
 async def get_strategy(
     strategy_id: int,
     db: AsyncSession = Depends(get_db),
@@ -42,25 +85,45 @@ async def get_strategy(
     return strategy
 
 
-@router.post("/strategies", response_model=ModelStrategy)
+@router.post("/strategies")
 async def create_strategy(
-    strategy_data: ModelStrategyCreate,
+    strategy_data: dict,
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_admin_user),
 ):
     """Create a new model strategy"""
-    return await StrategyService.create_strategy(db, strategy_data)
+    # Check if this is old format (has provider_id field)
+    if "provider_id" in strategy_data:
+        # Convert old format to new format
+        strategy_data_copy = strategy_data.copy()
+        new_strategy_data = convert_old_strategy_to_new(strategy_data_copy)
+        return await StrategyService.create_strategy(db, new_strategy_data)
+    else:
+        # Already in new format
+        new_strategy_data = ModelStrategyCreate(**strategy_data)
+        return await StrategyService.create_strategy(db, new_strategy_data)
 
 
 @router.put("/strategies/{strategy_id}", response_model=ModelStrategy)
 async def update_strategy(
     strategy_id: int,
-    strategy_data: ModelStrategyUpdate,
+    strategy_data: dict,
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_admin_user),
 ):
     """Update a model strategy"""
-    strategy = await StrategyService.update_strategy(db, strategy_id, strategy_data)
+    # Check if this is old format (has provider_id field)
+    if "provider_id" in strategy_data:
+        # Convert old format to new format
+        strategy_data_copy = strategy_data.copy()
+        new_strategy_data = convert_old_strategy_to_new(strategy_data_copy)
+        # Convert to update format
+        update_data = ModelStrategyUpdate(**new_strategy_data.model_dump())
+    else:
+        # Already in new format
+        update_data = ModelStrategyUpdate(**strategy_data)
+
+    strategy = await StrategyService.update_strategy(db, strategy_id, update_data)
     if not strategy:
         raise HTTPException(status_code=404, detail="Strategy not found")
     return strategy
@@ -116,10 +179,83 @@ async def get_available_models(
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_portal_user),
 ):
-    """Get available models from all providers, formatted as dropdown options"""
+    """Get available models for a specific strategy type from all providers"""
     try:
-        return await StrategyService.get_available_models_for_strategy(
+        return await StrategyService.get_available_models_by_strategy_type(
             db, strategy_type
         )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.get("/providers-dropdown")
+async def get_providers_dropdown(
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_portal_user),
+):
+    """Get all active providers for dropdown selection"""
+    result = await db.execute(select(Provider).where(Provider.is_active == True))
+    providers = result.scalars().all()
+
+    dropdown_options = []
+    for provider in providers:
+        dropdown_options.append(
+            {
+                "id": provider.id,
+                "name": provider.name,
+                "provider_type": provider.provider_type,
+                "model_count": len(provider.model_list) if provider.model_list else 0,
+            }
+        )
+
+    return {"providers": dropdown_options, "total_count": len(dropdown_options)}
+
+
+@router.post("/strategies/{strategy_id}/providers")
+async def add_provider_to_strategy(
+    strategy_id: int,
+    mapping_data: StrategyProviderMappingCreate,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_admin_user),
+):
+    """Add a provider to an existing strategy"""
+    try:
+        mapping = await StrategyService.add_provider_to_strategy(
+            db, strategy_id, mapping_data
+        )
+        return mapping
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.delete("/strategies/{strategy_id}/providers/{provider_id}")
+async def remove_provider_from_strategy(
+    strategy_id: int,
+    provider_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_admin_user),
+):
+    """Remove a provider from a strategy"""
+    success = await StrategyService.remove_provider_from_strategy(
+        db, strategy_id, provider_id
+    )
+    if not success:
+        raise HTTPException(status_code=404, detail="Provider mapping not found")
+    return {"detail": "Provider removed from strategy successfully"}
+
+
+@router.put("/strategies/{strategy_id}/providers/{mapping_id}")
+async def update_provider_mapping(
+    strategy_id: int,
+    mapping_id: int,
+    mapping_data: StrategyProviderMappingUpdate,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_admin_user),
+):
+    """Update a provider mapping within a strategy"""
+    mapping = await StrategyService.update_provider_mapping(
+        db, mapping_id, mapping_data
+    )
+    if not mapping:
+        raise HTTPException(status_code=404, detail="Provider mapping not found")
+    return mapping

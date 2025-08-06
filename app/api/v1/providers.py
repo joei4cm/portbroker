@@ -2,8 +2,7 @@ from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request
-from fastapi.responses import HTMLResponse, RedirectResponse
-from fastapi.templating import Jinja2Templates
+from fastapi.responses import RedirectResponse
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -31,43 +30,12 @@ from app.utils.api_key_generator import (
 )
 
 router = APIRouter()
-templates = Jinja2Templates(directory="frontend/templates")
 
 
-async def get_current_portal_user_or_redirect(
-    request: Request, db: AsyncSession = Depends(get_db)
-):
-    """Get current authenticated portal user or redirect to login"""
-    # Try to get token from Authorization header first
-    auth_header = request.headers.get("Authorization")
-    token = None
-
-    if auth_header and auth_header.startswith("Bearer "):
-        token = auth_header.split(" ")[1]
-
-    # If no token in header, check for token in cookies (for browser requests)
-    if not token:
-        token = request.cookies.get("portal_token")
-
-    if not token:
-        return RedirectResponse(url="/portal/login", status_code=303)
-
-    # Verify the token
-    from app.core.auth import verify_token
-
-    username = await verify_token(token)
-
-    if username is None:
-        return RedirectResponse(url="/portal/login", status_code=303)
-
-    return username
+# Authentication helper function is now in the portal router
 
 
-# Portal Authentication Routes
-@router.get("/login", response_class=HTMLResponse)
-async def login_page(request: Request):
-    """Serve the login page"""
-    return templates.TemplateResponse("login.html", {"request": request})
+# Portal authentication is now handled by the separate portal router
 
 
 @router.post("/login")
@@ -106,32 +74,7 @@ async def login(request: Request, db: AsyncSession = Depends(get_db)):
     return response
 
 
-@router.get("/", response_class=HTMLResponse)
-async def portal_dashboard(request: Request, db: AsyncSession = Depends(get_db)):
-    """Serve the portal dashboard (protected)"""
-    # Check authentication manually
-    auth_header = request.headers.get("Authorization")
-    token = None
-
-    if auth_header and auth_header.startswith("Bearer "):
-        token = auth_header.split(" ")[1]
-
-    # If no token in header, check for token in cookies (for browser requests)
-    if not token:
-        token = request.cookies.get("portal_token")
-
-    if not token:
-        return RedirectResponse(url="/portal/login", status_code=303)
-
-    # Verify the token
-    from app.core.auth import verify_token
-
-    username = await verify_token(token)
-
-    if username is None:
-        return RedirectResponse(url="/portal/login", status_code=303)
-
-    return templates.TemplateResponse("portal.html", {"request": request})
+# Portal dashboard is now handled by the separate portal router
 
 
 # Protect all existing portal endpoints with authentication

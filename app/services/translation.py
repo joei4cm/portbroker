@@ -116,7 +116,7 @@ class TranslationService:
                                     )
                     content = formatted_content if formatted_content else str(content)
 
-                messages.append(AnthropicMessage(role=msg.role, content=content))
+                messages.append(AnthropicMessage(role=str(msg.role), content=content))  # type: ignore
 
         anthropic_request = AnthropicRequest(
             model=openai_request.model,
@@ -125,14 +125,15 @@ class TranslationService:
             system=system_message,
             temperature=openai_request.temperature,
             top_p=openai_request.top_p,
+            top_k=None,  # Not available in OpenAI request
             stop_sequences=(
                 openai_request.stop
                 if isinstance(openai_request.stop, list)
                 else [openai_request.stop] if openai_request.stop else None
             ),
             stream=openai_request.stream or False,
-            tools=openai_request.tools,
-            tool_choice=openai_request.tool_choice,
+            tools=openai_request.tools or None,
+            tool_choice=openai_request.tool_choice or None,
         )
 
         return anthropic_request
@@ -145,22 +146,30 @@ class TranslationService:
         tool_calls = None
 
         if anthropic_response.content:
-            for item in anthropic_response.content:
-                if item.get("type") == "text":
-                    content += item.get("text", "")
-                elif item.get("type") == "tool_use":
-                    if tool_calls is None:
-                        tool_calls = []
-                    tool_calls.append(
-                        {
-                            "id": item.get("id"),
-                            "type": "function",
-                            "function": {
-                                "name": item.get("name"),
-                                "arguments": json.dumps(item.get("input", {})),
-                            },
-                        }
-                    )
+            content_items = anthropic_response.content
+            if isinstance(content_items, list):
+                for item in content_items:
+                    # Handle both dict and object access
+                    if hasattr(item, "get"):
+                        item_dict = item
+                    else:
+                        item_dict = item.__dict__
+
+                    if item_dict.get("type") == "text":
+                        content += item_dict.get("text", "")
+                    elif item_dict.get("type") == "tool_use":
+                        if tool_calls is None:
+                            tool_calls = []
+                        tool_calls.append(
+                            {
+                                "id": item_dict.get("id"),
+                                "type": "function",
+                                "function": {
+                                    "name": item_dict.get("name"),
+                                    "arguments": json.dumps(item_dict.get("input", {})),
+                                },
+                            }
+                        )
 
         message = ChatMessage(role="assistant", content=content, tool_calls=tool_calls)
 
@@ -197,7 +206,7 @@ class TranslationService:
         for msg in anthropic_request.messages:
             content = msg.content
             if isinstance(content, list):
-                formatted_content = []
+                formatted_content: List[Dict[str, Any]] = []
                 for item in content:
                     if isinstance(item, dict):
                         if item.get("type") == "text":
@@ -214,9 +223,26 @@ class TranslationService:
                                         "image_url": {"url": data_url},
                                     }
                                 )
+                    else:
+                        # Handle Pydantic model objects
+                        if hasattr(item, "type") and item.type == "text":
+                            formatted_content.append(
+                                {"type": "text", "text": getattr(item, "text", "")}
+                            )
+                        elif hasattr(item, "type") and item.type == "image":
+                            # Handle Pydantic model objects
+                            source = getattr(item, "source", {})
+                            if hasattr(source, "type") and source.type == "base64":
+                                data_url = f"data:{getattr(source, 'media_type', 'image/jpeg')};base64,{getattr(source, 'data', '')}"
+                                formatted_content.append(
+                                    {
+                                        "type": "image_url",
+                                        "image_url": {"url": data_url},
+                                    }
+                                )
                 content = formatted_content if formatted_content else str(content)
 
-            messages.append(ChatMessage(role=msg.role, content=content))
+            messages.append(ChatMessage(role=str(msg.role), content=content))  # type: ignore
 
         return ChatCompletionRequest(
             model=anthropic_request.model,
@@ -244,7 +270,7 @@ class TranslationService:
         for msg in count_tokens_request.messages:
             content = msg.content
             if isinstance(content, list):
-                formatted_content = []
+                formatted_content: List[Dict[str, Any]] = []
                 for item in content:
                     if isinstance(item, dict):
                         if item.get("type") == "text":
@@ -261,9 +287,26 @@ class TranslationService:
                                         "image_url": {"url": data_url},
                                     }
                                 )
+                    else:
+                        # Handle Pydantic model objects
+                        if hasattr(item, "type") and item.type == "text":
+                            formatted_content.append(
+                                {"type": "text", "text": getattr(item, "text", "")}
+                            )
+                        elif hasattr(item, "type") and item.type == "image":
+                            # Handle Pydantic model objects
+                            source = getattr(item, "source", {})
+                            if hasattr(source, "type") and source.type == "base64":
+                                data_url = f"data:{getattr(source, 'media_type', 'image/jpeg')};base64,{getattr(source, 'data', '')}"
+                                formatted_content.append(
+                                    {
+                                        "type": "image_url",
+                                        "image_url": {"url": data_url},
+                                    }
+                                )
                 content = formatted_content if formatted_content else str(content)
 
-            messages.append(ChatMessage(role=msg.role, content=content))
+            messages.append(ChatMessage(role=str(msg.role), content=content))  # type: ignore
 
         return ChatCompletionRequest(
             model=count_tokens_request.model,

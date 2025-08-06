@@ -29,10 +29,36 @@ class ProviderBase(BaseModel):
     max_tokens: Optional[int] = Field(None, description="Maximum tokens limit")
     temperature_default: Optional[str] = Field(None, description="Default temperature")
     headers: Optional[Dict[str, Any]] = Field(None, description="Additional headers")
+    verify_ssl: bool = Field(True, description="Whether to verify SSL certificates")
 
 
 class ProviderCreate(ProviderBase):
     pass
+
+
+class ProviderTestRequest(BaseModel):
+    """Request model for testing provider connection and loading models"""
+
+    provider_type: str = Field(..., description="Type of provider")
+    base_url: str = Field(..., description="Base URL for the provider API")
+    api_key: str = Field(..., description="API key for authentication")
+    headers: Optional[Dict[str, Any]] = Field(None, description="Additional headers")
+    verify_ssl: Optional[bool] = Field(
+        None, description="Whether to verify SSL certificates"
+    )
+
+
+class ModelSelectionRequest(BaseModel):
+    """Request model for selecting models from loaded list"""
+
+    models: List[str] = Field(..., description="List of selected models")
+    provider_type: str = Field(..., description="Provider type")
+    base_url: str = Field(..., description="Base URL")
+    api_key: str = Field(..., description="API key")
+    headers: Optional[Dict[str, Any]] = Field(None, description="Additional headers")
+    verify_ssl: Optional[bool] = Field(
+        None, description="Whether to verify SSL certificates"
+    )
 
 
 class ProviderUpdate(BaseModel):
@@ -45,10 +71,10 @@ class ProviderUpdate(BaseModel):
     small_model: Optional[str] = None
     medium_model: Optional[str] = None
     is_active: Optional[bool] = None
-    priority: Optional[int] = None
     max_tokens: Optional[int] = None
     temperature_default: Optional[str] = None
     headers: Optional[Dict[str, Any]] = None
+    verify_ssl: Optional[bool] = None
 
 
 class Provider(ProviderBase):
