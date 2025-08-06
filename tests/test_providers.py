@@ -12,11 +12,13 @@ class TestProviderManagement:
     @pytest.mark.asyncio
     async def test_create_provider_as_admin(self, client, test_admin_api_key):
         """Test creating a provider as admin"""
+        import uuid
+        
         response = client.post(
             "/v1/providers",
             headers={"Authorization": f"Bearer {test_admin_api_key.api_key}"},
             json={
-                "name": "Test Provider",
+                "name": f"Test Provider {uuid.uuid4().hex[:8]}",
                 "provider_type": "openai",
                 "base_url": "https://api.openai.com/v1",
                 "api_key": "test-api-key",

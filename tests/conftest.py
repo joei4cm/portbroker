@@ -120,8 +120,10 @@ async def test_user_api_key(test_db):
 @pytest_asyncio.fixture
 async def test_provider(test_db):
     """Create a test provider in the database"""
+    import uuid
+    
     provider = Provider(
-        name="Test Provider",
+        name=f"Test Provider {uuid.uuid4().hex[:8]}",
         provider_type="openai",
         base_url="https://api.openai.com/v1",
         api_key="test-api-key",

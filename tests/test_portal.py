@@ -162,11 +162,13 @@ class TestPortalPermissions:
     @pytest.mark.asyncio
     async def test_admin_can_create_provider(self, client, admin_api_key):
         """Test that admin can create providers via portal"""
+        import uuid
+        
         response = client.post(
             "/api/portal/providers",
             headers={"Authorization": f"Bearer {admin_api_key}"},
             json={
-                "name": "Admin Test Provider",
+                "name": f"Admin Test Provider {uuid.uuid4().hex[:8]}",
                 "provider_type": "openai",
                 "base_url": "https://api.openai.com/v1",
                 "api_key": "test-key",
@@ -181,11 +183,13 @@ class TestPortalPermissions:
     @pytest.mark.asyncio
     async def test_user_cannot_create_provider(self, client, user_api_key):
         """Test that regular user cannot create providers via portal"""
+        import uuid
+        
         response = client.post(
             "/api/portal/providers",
             headers={"Authorization": f"Bearer {user_api_key}"},
             json={
-                "name": "User Test Provider",
+                "name": f"User Test Provider {uuid.uuid4().hex[:8]}",
                 "provider_type": "openai",
                 "base_url": "https://api.openai.com/v1",
                 "api_key": "test-key",

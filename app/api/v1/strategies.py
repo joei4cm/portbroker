@@ -1,6 +1,7 @@
 from typing import Any, Dict, List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi.responses import Response
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -19,6 +20,21 @@ from app.schemas.strategy import (
 from app.services.strategy_service import StrategyService
 
 router = APIRouter()
+
+
+@router.options("/strategies")
+async def options_strategies(request: Request):
+    """Handle CORS preflight requests for strategies endpoint"""
+    return Response(
+        status_code=200,
+        headers={
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+            "Access-Control-Allow-Headers": "*",
+            "Access-Control-Allow-Credentials": "true",
+            "Access-Control-Max-Age": "600",
+        }
+    )
 
 
 def convert_old_strategy_to_new(old_data: dict) -> ModelStrategyCreate:

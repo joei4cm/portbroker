@@ -7,11 +7,17 @@ from pydantic import BaseModel, Field
 class ProviderBase(BaseModel):
     name: str = Field(..., description="Provider name")
     provider_type: str = Field(
-        ..., description="Type of provider (openai, azure, custom)"
+        ..., description="Type of provider (openai, anthropic, google, azure, cohere, mistral, perplexity, custom)"
     )
     base_url: str = Field(..., description="Base URL for the provider API")
     api_key: str = Field(..., description="API key for authentication")
-    model_list: List[str] = Field(..., description="List of available models")
+    model_list: List[str] = Field(default_factory=list, description="List of available models")
+    is_active: bool = Field(True, description="Whether the provider is active")
+    verify_ssl: bool = Field(True, description="Whether to verify SSL certificates")
+    max_tokens: Optional[int] = Field(None, description="Maximum tokens limit")
+    temperature_default: Optional[float] = Field(None, description="Default temperature")
+    headers: Optional[Dict[str, Any]] = Field(None, description="Additional headers")
+    # Legacy fields - kept for backward compatibility
     big_model: Optional[str] = Field(
         None,
         description="Model for high-complexity requests (deprecated, use model_list)",
@@ -24,12 +30,6 @@ class ProviderBase(BaseModel):
         None,
         description="Model for medium-complexity requests (deprecated, use model_list)",
     )
-    is_active: bool = Field(True, description="Whether the provider is active")
-    # Note: Strategy ID removed - now strategies reference providers
-    max_tokens: Optional[int] = Field(None, description="Maximum tokens limit")
-    temperature_default: Optional[str] = Field(None, description="Default temperature")
-    headers: Optional[Dict[str, Any]] = Field(None, description="Additional headers")
-    verify_ssl: bool = Field(True, description="Whether to verify SSL certificates")
 
 
 class ProviderCreate(ProviderBase):
@@ -59,6 +59,24 @@ class ModelSelectionRequest(BaseModel):
     verify_ssl: Optional[bool] = Field(
         None, description="Whether to verify SSL certificates"
     )
+
+
+class ModelValidationResponse(BaseModel):
+    """Response model for model validation"""
+
+    models: List[str] = Field(..., description="List of available models")
+    provider_type: str = Field(..., description="Provider type")
+    success: bool = Field(..., description="Whether validation was successful")
+    error: Optional[str] = Field(None, description="Error message if validation failed")
+
+
+class HealthCheckResponse(BaseModel):
+    """Response model for provider health check"""
+
+    healthy: bool = Field(..., description="Whether provider is healthy")
+    response_time: Optional[float] = Field(None, description="Response time in seconds")
+    error: Optional[str] = Field(None, description="Error message if check failed")
+    models_available: Optional[int] = Field(None, description="Number of available models")
 
 
 class ProviderUpdate(BaseModel):

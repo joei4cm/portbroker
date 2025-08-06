@@ -17,9 +17,10 @@ class TestProviderService:
         """Test getting active providers"""
         # Add a test provider to the database
         from app.models.strategy import Provider
+        import uuid
 
         provider = Provider(
-            name="Test Provider",
+            name=f"Test Provider {uuid.uuid4().hex[:8]}",
             provider_type="openai",
             base_url="https://api.openai.com/v1",
             api_key="test-key",
@@ -33,16 +34,17 @@ class TestProviderService:
 
         assert isinstance(result, list)
         assert len(result) == 1
-        assert result[0].name == "Test Provider"
+        assert result[0].name.startswith("Test Provider")
 
     @pytest.mark.asyncio
     async def test_get_provider_by_id(self, test_db):
         """Test getting provider by ID"""
         # Add a test provider to the database
         from app.models.strategy import Provider
+        import uuid
 
         provider = Provider(
-            name="Test Provider",
+            name=f"Test Provider {uuid.uuid4().hex[:8]}",
             provider_type="openai",
             base_url="https://api.openai.com/v1",
             api_key="test-key",
@@ -56,7 +58,7 @@ class TestProviderService:
         result = await ProviderService.get_provider_by_id(test_db, provider.id)
 
         assert result is not None
-        assert result.name == "Test Provider"
+        assert result.name.startswith("Test Provider")
 
         # Test with non-existent ID
         result = await ProviderService.get_provider_by_id(test_db, 999)

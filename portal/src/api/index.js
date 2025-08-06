@@ -83,5 +83,15 @@ export default {
   async updateSettings(settings) {
     const response = await api.put('/settings', settings)
     return response.data
+  },
+  
+  async validateProviderModels(config) {
+    const response = await api.post('/providers/validate-models', config)
+    return response.data
+  },
+  
+  async checkProviderHealth(id) {
+    const response = await api.post(`/providers/${id}/health`)
+    return response.data
   }
 }
