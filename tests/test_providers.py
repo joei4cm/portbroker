@@ -13,7 +13,7 @@ class TestProviderManagement:
     async def test_create_provider_as_admin(self, client, test_admin_api_key):
         """Test creating a provider as admin"""
         import uuid
-        
+
         response = client.post(
             "/v1/providers",
             headers={"Authorization": f"Bearer {test_admin_api_key.api_key}"},

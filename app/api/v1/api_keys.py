@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.auth import (
     get_current_admin_user,
     get_current_api_key,
+    get_current_admin_api_key,
     get_optional_api_key,
 )
 from app.core.database import get_db
@@ -71,7 +72,7 @@ async def get_api_key(
 async def create_api_key(
     key_data: APIKeyAutoCreate,
     db: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(get_current_admin_user),
+    current_user: dict = Depends(get_current_admin_api_key),
 ):
     """Create a new API key (admin only)"""
     # Generate the API key
@@ -102,7 +103,7 @@ async def update_api_key(
     key_id: int,
     key_data: APIKeyUpdate,
     db: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(get_current_admin_user),
+    current_user: dict = Depends(get_current_admin_api_key),
 ):
     """Update an existing API key (admin only)"""
     result = await db.execute(select(APIKey).where(APIKey.id == key_id))
@@ -111,6 +112,15 @@ async def update_api_key(
         raise HTTPException(status_code=404, detail="API key not found")
 
     update_data = key_data.model_dump(exclude_none=True)
+
+    # Handle key regeneration
+    if update_data.get("regenerate"):
+        # Generate a new API key
+        api_key.api_key = generate_openai_style_api_key()
+        # Remove regenerate from update_data as it's not a model field
+        update_data.pop("regenerate", None)
+
+    # Update other fields
     for field, value in update_data.items():
         setattr(api_key, field, value)
 
@@ -123,7 +133,7 @@ async def update_api_key(
 async def delete_api_key(
     key_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(get_current_admin_user),
+    current_user: dict = Depends(get_current_admin_api_key),
 ):
     """Delete an API key (admin only)"""
     result = await db.execute(delete(APIKey).where(APIKey.id == key_id))
@@ -141,7 +151,7 @@ async def create_api_key_with_expiry(
     expires_in_days: Optional[int] = None,
     is_admin: bool = False,
     db: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(get_current_admin_user),
+    current_user: dict = Depends(get_current_admin_api_key),
 ):
     """Create API key with optional expiration (admin only)"""
     expires_at = None

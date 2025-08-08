@@ -16,8 +16,9 @@ class TestProviderService:
     async def test_get_active_providers(self, test_db):
         """Test getting active providers"""
         # Add a test provider to the database
-        from app.models.strategy import Provider
         import uuid
+
+        from app.models.strategy import Provider
 
         provider = Provider(
             name=f"Test Provider {uuid.uuid4().hex[:8]}",
@@ -40,8 +41,9 @@ class TestProviderService:
     async def test_get_provider_by_id(self, test_db):
         """Test getting provider by ID"""
         # Add a test provider to the database
-        from app.models.strategy import Provider
         import uuid
+
+        from app.models.strategy import Provider
 
         provider = Provider(
             name=f"Test Provider {uuid.uuid4().hex[:8]}",

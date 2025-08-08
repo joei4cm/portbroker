@@ -4,9 +4,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-PortBroker is an API service built with FastAPI that translates between Anthropic and OpenAI API formats while managing multiple AI providers. It acts as a universal API gateway that allows clients to use either API format seamlessly, with intelligent model mapping and provider failover.
+PortBroker is an advanced API service built with FastAPI that translates between Anthropic and OpenAI API formats while managing multiple AI providers through intelligent strategy-based routing. It acts as a universal API gateway with sophisticated model mapping, provider failover, and load balancing capabilities.
 
-The system includes both a backend API service and a Vue.js-based portal interface for comprehensive provider and strategy management.
+The system features:
+- **Multi-Provider Strategy System**: Intelligent routing across multiple AI providers with configurable fallback logic
+- **Vue.js Portal Interface**: Modern web interface for comprehensive provider, strategy, and API key management
+- **Dual API Support**: Seamless translation between Anthropic and OpenAI API formats
+- **Intelligent Model Mapping**: Automatic model selection based on provider capabilities and strategy configuration
+- **Comprehensive Authentication**: JWT-based portal authentication and API key-based external access
 
 ## Development Commands
 
@@ -33,6 +38,30 @@ uv run uvicorn app.main:app --reload
 
 # Alternative development run
 uv run python -m uvicorn app.main:app --reload
+```
+
+### Portal Development
+```bash
+# Navigate to portal directory
+cd portal
+
+# Install dependencies
+npm install
+
+# Development server with hot reload
+npm run dev
+
+# Build for production
+npm run build
+
+# Preview production build
+npm run preview
+
+# Type checking
+npm run type-check
+
+# Linting
+npm run lint
 ```
 
 ### Code Quality
@@ -102,6 +131,8 @@ uv run pytest -m portal        # Portal tests only
 - `test_provider_service.py`: Business logic for provider operations
 - `test_translation.py`: API translation service
 - `test_utils.py`: Utility functions and helpers
+- `test_strategies.py`: Strategy management and model mapping
+- `conftest.py`: Test configuration and fixtures
 
 **Testing Best Practices**:
 - Use fixtures for common test data (providers, API keys, etc.)
@@ -198,19 +229,35 @@ asyncio.run(test())
    - Handles model mapping (claude-3-haiku/sonnet/opus → provider models)
    - Manages streaming responses and tool/function calling translation
 
-2. **Provider Management** (`app/services/provider_service.py`):
+2. **Strategy System** (`app/services/strategy_service.py`):
+   - Manages multi-provider routing strategies with fallback logic
+   - Handles intelligent model selection based on provider capabilities
+   - Supports load balancing and failover across multiple providers
+
+3. **Provider Management** (`app/services/provider_service.py`):
    - Manages multiple AI providers with priority-based failover
    - Handles provider CRUD operations and health checks
    - Supports OpenAI-compatible providers (OpenAI, Azure, custom endpoints)
 
-3. **Database Layer** (`app/core/database.py`):
+4. **Database Layer** (`app/core/database.py`):
    - Supports SQLite (default), PostgreSQL, and Supabase
    - Uses SQLAlchemy 2.0 with async support
-   - Stores provider configurations and API keys
+   - Stores provider configurations, API keys, and strategies
 
-4. **API Endpoints** (`app/api/v1/`):
+5. **Authentication System** (`app/core/auth.py`):
+   - JWT-based authentication for portal access
+   - API key authentication for external API access
+   - Role-based access control (admin vs user)
+
+6. **Vue.js Portal** (`portal/`):
+   - Modern web interface built with Vue.js 3 and Ant Design Vue
+   - Comprehensive management UI for providers, strategies, and API keys
+   - Real-time status monitoring and testing capabilities
+
+7. **API Endpoints** (`app/api/v1/`):
    - `/v1/chat/completions` - OpenAI-compatible endpoint
    - `/api/anthropic/v1/messages` - Anthropic-compatible endpoint
+   - `/api/portal/*` - Portal management endpoints
    - `/admin/providers` - Provider management
    - `/admin/api-keys` - API key management
 
@@ -233,15 +280,29 @@ This allows seamless translation between API formats while maintaining appropria
 ### Database Schema
 
 Key tables:
-- `providers`: Stores AI provider configurations (name, base_url, api_key, model mappings)
-- `api_keys`: Stores API keys for external authentication
+- `providers`: Stores AI provider configurations (name, base_url, api_key, model mappings, headers, SSL settings)
+- `api_keys`: Stores API keys for external authentication with expiration support
+- `model_strategies`: Strategy definitions with fallback logic and routing rules
+- `strategy_provider_mappings`: Many-to-many mapping between strategies and providers with priorities
+
+### Strategy System
+
+The strategy system enables intelligent routing across multiple providers:
+
+- **Strategy Creation**: Define strategies with specific routing rules and fallback logic
+- **Provider Mapping**: Associate multiple providers with each strategy, ordered by priority
+- **Model Mapping**: Automatic model selection based on provider capabilities and strategy configuration
+- **Load Balancing**: Distribute requests across providers based on availability and performance
+- **Failover**: Automatic fallback to backup providers when primary providers are unavailable
 
 ### Configuration
 
 Environment variables control:
 - Database type and connection strings (`DATABASE_TYPE`, `DATABASE_URL`)
 - Server host/port (`HOST`, `PORT`)
-- Default provider settings
+- JWT authentication (`SECRET_KEY`, `ALGORITHM`, `ACCESS_TOKEN_EXPIRE_MINUTES`)
+- Default provider settings (`DEFAULT_OPENAI_API_KEY`, `DEFAULT_OPENAI_BASE_URL`)
+- Default model mappings (`DEFAULT_BIG_MODEL`, `DEFAULT_SMALL_MODEL`)
 - Security configuration (`SECRET_KEY`)
 - Supabase integration (`SUPABASE_URL`, `SUPABASE_KEY`)
 
@@ -251,3 +312,36 @@ The application uses `pydantic-settings` for configuration management with `.env
 - **SQLite** (default): `DATABASE_TYPE=sqlite`
 - **PostgreSQL**: `DATABASE_TYPE=postgresql` 
 - **Supabase**: `DATABASE_TYPE=supabase`
+
+### Authentication System
+
+The system uses dual authentication approaches:
+
+1. **Portal Authentication (JWT)**:
+   - Username/password login via web interface
+   - JWT tokens stored in localStorage
+   - Role-based access control (admin vs user)
+   - Automatic token refresh and expiration handling
+
+2. **API Authentication (API Keys)**:
+   - Bearer token authentication for external API access
+   - Configurable expiration dates for API keys
+   - Key-based access control for different endpoints
+
+### Portal Development
+
+The Vue.js portal provides a comprehensive management interface:
+
+- **Dashboard**: Overview of system status and usage metrics
+- **Providers**: Add, edit, test, and manage AI providers
+- **Strategies**: Create and manage multi-provider routing strategies
+- **API Keys**: Generate and manage API keys with expiration
+- **Playground**: Test API endpoints with different configurations
+- **Settings**: System configuration and user management
+
+**Portal Technology Stack**:
+- Vue.js 3 with Composition API
+- Ant Design Vue for UI components
+- Vite for build tooling
+- TypeScript for type safety
+- Axios for HTTP requests

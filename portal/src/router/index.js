@@ -6,6 +6,7 @@ import Playground from '@/views/Playground.vue'
 import Providers from '@/views/Providers.vue'
 import Strategies from '@/views/Strategies.vue'
 import Settings from '@/views/Settings.vue'
+import ApiKeys from '@/views/ApiKeys.vue'
 
 const routes = [
   {
@@ -41,6 +42,11 @@ const routes = [
         path: 'settings',
         name: 'Settings',
         component: Settings
+      },
+      {
+        path: 'api-keys',
+        name: 'ApiKeys',
+        component: ApiKeys
       }
     ]
   }

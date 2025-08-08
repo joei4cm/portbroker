@@ -33,7 +33,172 @@ async def options_strategies(request: Request):
             "Access-Control-Allow-Headers": "*",
             "Access-Control-Allow-Credentials": "true",
             "Access-Control-Max-Age": "600",
-        }
+        },
+    )
+
+
+@router.options("/strategies/{strategy_id}")
+async def options_strategy_by_id(request: Request):
+    """Handle CORS preflight requests for strategy by ID endpoint"""
+    return Response(
+        status_code=200,
+        headers={
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "GET, PUT, DELETE, OPTIONS",
+            "Access-Control-Allow-Headers": "*",
+            "Access-Control-Allow-Credentials": "true",
+            "Access-Control-Max-Age": "600",
+        },
+    )
+
+
+@router.options("/providers-with-strategies")
+async def options_providers_with_strategies(request: Request):
+    """Handle CORS preflight requests for providers with strategies endpoint"""
+    return Response(
+        status_code=200,
+        headers={
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "GET, OPTIONS",
+            "Access-Control-Allow-Headers": "*",
+            "Access-Control-Allow-Credentials": "true",
+            "Access-Control-Max-Age": "600",
+        },
+    )
+
+
+@router.options("/strategies-with-providers")
+async def options_strategies_with_providers(request: Request):
+    """Handle CORS preflight requests for strategies with providers endpoint"""
+    return Response(
+        status_code=200,
+        headers={
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "GET, OPTIONS",
+            "Access-Control-Allow-Headers": "*",
+            "Access-Control-Allow-Credentials": "true",
+            "Access-Control-Max-Age": "600",
+        },
+    )
+
+
+@router.options("/strategy-models")
+async def options_strategy_models(request: Request):
+    """Handle CORS preflight requests for strategy models endpoint"""
+    return Response(
+        status_code=200,
+        headers={
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "GET, OPTIONS",
+            "Access-Control-Allow-Headers": "*",
+            "Access-Control-Allow-Credentials": "true",
+            "Access-Control-Max-Age": "600",
+        },
+    )
+
+
+@router.options("/providers-dropdown")
+async def options_providers_dropdown(request: Request):
+    """Handle CORS preflight requests for providers dropdown endpoint"""
+    return Response(
+        status_code=200,
+        headers={
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "GET, OPTIONS",
+            "Access-Control-Allow-Headers": "*",
+            "Access-Control-Allow-Credentials": "true",
+            "Access-Control-Max-Age": "600",
+        },
+    )
+
+
+@router.options("/map-model")
+async def options_map_model(request: Request):
+    """Handle CORS preflight requests for map model endpoint"""
+    return Response(
+        status_code=200,
+        headers={
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "POST, OPTIONS",
+            "Access-Control-Allow-Headers": "*",
+            "Access-Control-Allow-Credentials": "true",
+            "Access-Control-Max-Age": "600",
+        },
+    )
+
+
+@router.options("/strategies/{strategy_id}/activate")
+async def options_activate_strategy(request: Request):
+    """Handle CORS preflight requests for activate strategy endpoint"""
+    return Response(
+        status_code=200,
+        headers={
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "POST, OPTIONS",
+            "Access-Control-Allow-Headers": "*",
+            "Access-Control-Allow-Credentials": "true",
+            "Access-Control-Max-Age": "600",
+        },
+    )
+
+
+@router.options("/strategies/{strategy_id}/deactivate")
+async def options_deactivate_strategy(request: Request):
+    """Handle CORS preflight requests for deactivate strategy endpoint"""
+    return Response(
+        status_code=200,
+        headers={
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "POST, OPTIONS",
+            "Access-Control-Allow-Headers": "*",
+            "Access-Control-Allow-Credentials": "true",
+            "Access-Control-Max-Age": "600",
+        },
+    )
+
+
+@router.options("/strategies/{strategy_id}/providers")
+async def options_strategy_providers(request: Request):
+    """Handle CORS preflight requests for strategy providers endpoint"""
+    return Response(
+        status_code=200,
+        headers={
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "POST, OPTIONS",
+            "Access-Control-Allow-Headers": "*",
+            "Access-Control-Allow-Credentials": "true",
+            "Access-Control-Max-Age": "600",
+        },
+    )
+
+
+@router.options("/strategies/{strategy_id}/providers/{provider_id}")
+async def options_strategy_provider_by_id(request: Request):
+    """Handle CORS preflight requests for strategy provider by ID endpoint"""
+    return Response(
+        status_code=200,
+        headers={
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "DELETE, OPTIONS",
+            "Access-Control-Allow-Headers": "*",
+            "Access-Control-Allow-Credentials": "true",
+            "Access-Control-Max-Age": "600",
+        },
+    )
+
+
+@router.options("/strategies/{strategy_id}/providers/{mapping_id}")
+async def options_provider_mapping(request: Request):
+    """Handle CORS preflight requests for provider mapping endpoint"""
+    return Response(
+        status_code=200,
+        headers={
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "PUT, OPTIONS",
+            "Access-Control-Allow-Headers": "*",
+            "Access-Control-Allow-Credentials": "true",
+            "Access-Control-Max-Age": "600",
+        },
     )
 
 
@@ -202,6 +367,36 @@ async def get_available_models(
         )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.post("/strategies/{strategy_id}/activate")
+async def activate_strategy(
+    strategy_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_admin_user),
+):
+    """Activate a strategy (deactivates other strategies of the same type)"""
+    try:
+        strategy = await StrategyService.activate_strategy(db, strategy_id)
+        return strategy
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+
+@router.post("/strategies/{strategy_id}/deactivate")
+async def deactivate_strategy(
+    strategy_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_admin_user),
+):
+    """Deactivate a strategy"""
+    try:
+        strategy = await StrategyService.deactivate_strategy(db, strategy_id)
+        return strategy
+    except Exception as e:
+        raise HTTPException(status_code=404, detail=str(e))
 
 
 @router.get("/providers-dropdown")

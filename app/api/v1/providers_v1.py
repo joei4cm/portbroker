@@ -115,6 +115,12 @@ async def create_provider(
     api_key: dict = Depends(get_current_admin_api_key),
 ):
     """Create a new provider (admin only)"""
+    # Check for duplicate provider name
+    result = await db.execute(select(Provider).where(Provider.name == provider_data.name))
+    existing_provider = result.scalar_one_or_none()
+    if existing_provider:
+        raise HTTPException(status_code=400, detail=f"Provider with name '{provider_data.name}' already exists")
+    
     db_provider = Provider(**provider_data.model_dump())
     db.add(db_provider)
     await db.commit()
@@ -136,6 +142,19 @@ async def update_provider(
         raise HTTPException(status_code=404, detail="Provider not found")
 
     update_data = provider_data.model_dump(exclude_none=True)
+    
+    # Check for duplicate name if name is being updated
+    if "name" in update_data:
+        result = await db.execute(
+            select(Provider).where(
+                Provider.name == update_data["name"],
+                Provider.id != provider_id
+            )
+        )
+        existing_provider = result.scalar_one_or_none()
+        if existing_provider:
+            raise HTTPException(status_code=400, detail=f"Provider with name '{update_data['name']}' already exists")
+    
     for field, value in update_data.items():
         setattr(provider, field, value)
 
@@ -253,25 +272,3 @@ async def load_provider_models(request: ProviderTestRequest):
         raise HTTPException(status_code=500, detail=f"Error loading models: {str(e)}")
 
 
-@router.get("/models")
-async def get_all_models(
-    db: AsyncSession = Depends(get_db),
-    api_key: dict = Depends(get_current_api_key),
-):
-    """Get all models from all active providers (authenticated users)"""
-    result = await db.execute(select(Provider).where(Provider.is_active.is_(True)))
-    providers = result.scalars().all()
-
-    all_models = []
-    for provider in providers:
-        if provider.model_list:
-            for model in provider.model_list:
-                all_models.append(
-                    {
-                        "model": model,
-                        "provider": provider.name,
-                        "provider_id": provider.id,
-                    }
-                )
-
-    return {"models": all_models}

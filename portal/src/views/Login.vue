@@ -45,6 +45,11 @@ export default {
       try {
         const response = await api.login(this.form)
         localStorage.setItem('token', response.access_token)
+        
+        // Fetch user information
+        const userInfo = await api.getUserInfo()
+        localStorage.setItem('user', JSON.stringify(userInfo))
+        
         message.success('Login successful')
         this.$router.push('/')
       } catch (error) {

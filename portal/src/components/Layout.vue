@@ -34,6 +34,11 @@
           <span>Settings</span>
           <router-link to="/settings"></router-link>
         </a-menu-item>
+        <a-menu-item key="api-keys">
+          <key-outlined />
+          <span>API Keys</span>
+          <router-link to="/api-keys"></router-link>
+        </a-menu-item>
       </a-menu>
     </a-layout-sider>
     
@@ -63,6 +68,7 @@ import {
   CloudServerOutlined,
   BranchesOutlined,
   SettingOutlined,
+  KeyOutlined,
   LogoutOutlined
 } from '@ant-design/icons-vue'
 
@@ -74,6 +80,7 @@ export default {
     CloudServerOutlined,
     BranchesOutlined,
     SettingOutlined,
+    KeyOutlined,
     LogoutOutlined
   },
   data() {

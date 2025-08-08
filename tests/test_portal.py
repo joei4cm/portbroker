@@ -103,10 +103,10 @@ class TestPortalAuth:
         assert "database_url" in settings
 
     @pytest.mark.asyncio
-    async def test_settings_endpoint_accessible_to_user(
+    async def test_settings_endpoint_forbidden_to_user(
         self, client, test_user_api_key
     ):
-        """Test settings endpoint is accessible to users but UI should hide navigation"""
+        """Test settings endpoint is forbidden to regular users"""
         # First login to get token
         login_response = client.post(
             "/api/portal/login", json={"api_key": test_user_api_key.api_key}
@@ -119,11 +119,7 @@ class TestPortalAuth:
         response = client.get(
             "/api/portal/settings", headers={"Authorization": f"Bearer {token}"}
         )
-        assert response.status_code == 200
-
-        settings = response.json()
-        assert "database_type" in settings
-        assert "database_url" in settings
+        assert response.status_code == 403
 
     @pytest.mark.asyncio
     async def test_portal_settings_endpoint(self, client, user_api_key):
@@ -160,13 +156,22 @@ class TestPortalPermissions:
     """Test portal permission system"""
 
     @pytest.mark.asyncio
-    async def test_admin_can_create_provider(self, client, admin_api_key):
+    async def test_admin_can_create_provider(self, client, test_admin_api_key):
         """Test that admin can create providers via portal"""
         import uuid
-        
+
+        # First login to get JWT token
+        login_response = client.post(
+            "/api/portal/login", json={"api_key": test_admin_api_key.api_key}
+        )
+        assert login_response.status_code == 200
+
+        token = login_response.json()["access_token"]
+
+        # Now test provider creation with JWT token
         response = client.post(
             "/api/portal/providers",
-            headers={"Authorization": f"Bearer {admin_api_key}"},
+            headers={"Authorization": f"Bearer {token}"},
             json={
                 "name": f"Admin Test Provider {uuid.uuid4().hex[:8]}",
                 "provider_type": "openai",
@@ -177,17 +182,26 @@ class TestPortalPermissions:
             },
         )
 
-        # Should work if auth is properly implemented
-        assert response.status_code in [201, 401, 403]
+        # Should work for admin users
+        assert response.status_code == 201
 
     @pytest.mark.asyncio
-    async def test_user_cannot_create_provider(self, client, user_api_key):
+    async def test_user_cannot_create_provider(self, client, test_user_api_key):
         """Test that regular user cannot create providers via portal"""
         import uuid
-        
+
+        # First login to get JWT token
+        login_response = client.post(
+            "/api/portal/login", json={"api_key": test_user_api_key.api_key}
+        )
+        assert login_response.status_code == 200
+
+        token = login_response.json()["access_token"]
+
+        # Now test provider creation with JWT token
         response = client.post(
             "/api/portal/providers",
-            headers={"Authorization": f"Bearer {user_api_key}"},
+            headers={"Authorization": f"Bearer {token}"},
             json={
                 "name": f"User Test Provider {uuid.uuid4().hex[:8]}",
                 "provider_type": "openai",
@@ -199,4 +213,4 @@ class TestPortalPermissions:
         )
 
         # Should be forbidden for regular users
-        assert response.status_code in [403, 401]
+        assert response.status_code == 403

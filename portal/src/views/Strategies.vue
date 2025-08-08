@@ -30,36 +30,45 @@
         </template>
         
         <template v-if="column.key === 'models'">
-          <div v-if="record.strategy_type === 'openai'">
-            <a-tag v-for="mapping in record.provider_mappings" :key="mapping.id" style="margin: 2px;">
-              <div style="font-weight: bold;">{{ mapping.provider?.name }}</div>
-              <div v-for="model in mapping.selected_models" :key="model" style="margin: 1px;">
-                {{ model }}
-              </div>
-            </a-tag>
-          </div>
-          <div v-else>
-            <div v-for="mapping in record.provider_mappings" :key="mapping.id" style="margin-bottom: 8px;">
-              <div style="font-weight: bold;">{{ mapping.provider?.name }}</div>
-              <div v-if="mapping.large_models?.length">
-                <small>Big:</small>
-                <a-tag v-for="model in mapping.large_models" :key="model" color="red" style="margin: 2px;">
-                  {{ model }}
-                </a-tag>
-              </div>
-              <div v-if="mapping.medium_models?.length">
-                <small>Medium:</small>
-                <a-tag v-for="model in mapping.medium_models" :key="model" color="orange" style="margin: 2px;">
-                  {{ model }}
-                </a-tag>
-              </div>
-              <div v-if="mapping.small_models?.length">
-                <small>Small:</small>
-                <a-tag v-for="model in mapping.small_models" :key="model" color="blue" style="margin: 2px;">
-                  {{ model }}
-                </a-tag>
+          <div class="models-container">
+            <div v-if="record.strategy_type === 'openai'">
+              <div v-for="mapping in record.provider_mappings" :key="mapping.id" class="provider-models">
+                <div class="provider-name">{{ mapping.provider?.name }}</div>
+                <div class="model-list">
+                  <a-tag v-for="model in mapping.selected_models" :key="model" class="model-tag">
+                    {{ model }}
+                  </a-tag>
+                </div>
               </div>
             </div>
+            <div v-else>
+              <div v-for="mapping in record.provider_mappings" :key="mapping.id" class="provider-models">
+                <div class="provider-name">{{ mapping.provider?.name }}</div>
+                <div class="anthropic-models">
+                  <div v-if="mapping.large_models?.length" class="model-tier">
+                    <span class="tier-label">Big:</span>
+                    <a-tag v-for="model in mapping.large_models" :key="model" color="red" class="model-tag">
+                      {{ model }}
+                    </a-tag>
+                  </div>
+                  <div v-if="mapping.medium_models?.length" class="model-tier">
+                    <span class="tier-label">Medium:</span>
+                    <a-tag v-for="model in mapping.medium_models" :key="model" color="orange" class="model-tag">
+                      {{ model }}
+                    </a-tag>
+                  </div>
+                  <div v-if="mapping.small_models?.length" class="model-tier">
+                    <span class="tier-label">Small:</span>
+                    <a-tag v-for="model in mapping.small_models" :key="model" color="blue" class="model-tag">
+                      {{ model }}
+                    </a-tag>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <a-tooltip v-if="getModelOrderInfo(record)" :title="getModelOrderInfo(record)">
+              <info-circle-outlined class="info-icon" />
+            </a-tooltip>
           </div>
         </template>
         
@@ -80,190 +89,168 @@
     <a-modal
       v-model:open="modalVisible"
       :title="editingStrategy ? 'Edit Strategy' : 'Add Strategy'"
-      @ok="handleModalStep"
+      @ok="handleModalOk"
       @cancel="handleModalCancel"
-      width="1200px"
-      :ok-button-props="{ disabled: !isStepValid }"
-      :ok-text="currentStep === 2 ? 'Create Strategy' : 'Next'"
+      width="1000px"
+      :ok-button-props="{ disabled: !isFormValid }"
     >
-      <a-steps :current="currentStep" style="margin-bottom: 24px;">
-        <a-step title="Strategy Type" description="Choose OpenAI or Anthropic" />
-        <a-step title="Strategy Details" description="Name and configuration" />
-        <a-step title="Model Selection" description="Configure model ordering" />
-      </a-steps>
-
-      <!-- Step 1: Strategy Type Selection -->
-      <div v-if="currentStep === 0">
-        <a-form
-          :model="form"
-          :rules="rules"
-          ref="formRefStep1"
-          layout="vertical"
-          @finish="handleFormFinish"
-        >
-          <a-form-item label="Strategy Type" name="type">
-            <a-radio-group v-model:value="form.type" @change="handleTypeChange">
-              <a-radio value="openai">
-                <a-card hoverable style="width: 300px; margin-right: 16px;">
-                  <template #title>
-                    <span style="color: #1890ff;">OpenAI</span>
-                  </template>
-                  <p>For OpenAI-compatible models with single model list ordering</p>
-                  <ul>
-                    <li>GPT-3.5, GPT-4, and compatible models</li>
-                    <li>Simple model priority ordering</li>
-                    <li>Easy configuration</li>
-                  </ul>
-                </a-card>
-              </a-radio>
-              <a-radio value="anthropic">
-                <a-card hoverable style="width: 300px;">
-                  <template #title>
-                    <span style="color: #52c41a;">Anthropic</span>
-                  </template>
-                  <p>For Anthropic models with tiered model selection</p>
-                  <ul>
-                    <li>Claude 3 Haiku, Sonnet, Opus</li>
-                    <li>High/Middle/Low tier organization</li>
-                    <li>Advanced fallback strategy</li>
-                  </ul>
-                </a-card>
-              </a-radio>
-            </a-radio-group>
-          </a-form-item>
-        </a-form>
-      </div>
-
-      <!-- Step 2: Strategy Details -->
-      <div v-if="currentStep === 1">
-        <a-form
-          :model="form"
-          :rules="rules"
-          ref="formRefStep2"
-          layout="vertical"
-          @finish="handleFormFinish"
-        >
-          <a-form-item label="Strategy Name" name="name">
-            <a-input v-model:value="form.name" placeholder="Enter strategy name" />
-          </a-form-item>
-          
-          <a-form-item label="Description">
-            <a-textarea v-model:value="form.description" placeholder="Enter strategy description (optional)" :rows="3" />
-          </a-form-item>
-          
-          <a-form-item label="Fallback Configuration">
-            <a-checkbox v-model:checked="form.fallback_enabled">
-              Enable fallback to smaller models if larger models fail
-            </a-checkbox>
-            <div v-if="form.fallback_enabled" style="margin-top: 8px;">
-              <span style="margin-right: 8px;">Fallback order:</span>
-              <a-select v-model:value="form.fallback_order" mode="multiple" style="width: 300px;">
-                <a-select-option value="large">Large Models</a-select-option>
-                <a-select-option value="medium">Medium Models</a-select-option>
-                <a-select-option value="small">Small Models</a-select-option>
-              </a-select>
-            </div>
-          </a-form-item>
-        </a-form>
-      </div>
-
-      <!-- Step 3: Model Selection -->
-      <div v-if="currentStep === 2">
-        <a-form
-          :model="form"
-          :rules="rules"
-          ref="formRefStep3"
-          layout="vertical"
-          @finish="handleFormFinish"
-        >
-          <!-- OpenAI Strategy Form -->
-          <div v-if="form.type === 'openai'">
-            <a-form-item label="Available Models">
-              <a-row :gutter="16">
-                <a-col :span="12">
-                  <a-select
-                    v-model:value="selectedOpenAIModel"
-                    placeholder="Search and select models"
-                    show-search
-                    :filter-option="filterOption"
-                    :options="availableOpenAIModels"
-                  />
-                </a-col>
-                <a-col :span="12">
-                  <a-button @click="addOpenAIModel" :disabled="!selectedOpenAIModel">
-                    Add Model
-                  </a-button>
-                </a-col>
-              </a-row>
-            </a-form-item>
+      <a-form
+        :model="form"
+        :rules="rules"
+        ref="formRef"
+        layout="vertical"
+      >
+        <!-- Strategy Type Selection -->
+        <a-form-item label="Strategy Type" name="strategy_type">
+          <a-radio-group v-model:value="form.strategy_type" @change="handleTypeChange">
+            <a-radio value="openai">
+              <a-card hoverable style="width: 300px; margin-right: 16px;">
+                <template #title>
+                  <span style="color: #1890ff;">OpenAI</span>
+                </template>
+                <p>For OpenAI-compatible models with single model list</p>
+                <ul>
+                  <li>GPT-3.5, GPT-4, and compatible models</li>
+                  <li>Simple model priority ordering</li>
+                  <li>Easy configuration</li>
+                </ul>
+              </a-card>
+            </a-radio>
+            <a-radio value="anthropic">
+              <a-card hoverable style="width: 300px;">
+                <template #title>
+                  <span style="color: #52c41a;">Anthropic</span>
+                </template>
+                <p>For Anthropic models with tiered model selection</p>
+                <ul>
+                  <li>Claude 3 Haiku, Sonnet, Opus</li>
+                  <li>Big/Medium/Small tier organization</li>
+                  <li>Advanced model routing</li>
+                </ul>
+              </a-card>
+            </a-radio>
+          </a-radio-group>
+        </a-form-item>
+        
+        <!-- Strategy Name -->
+        <a-form-item label="Strategy Name" name="name">
+          <a-input v-model:value="form.name" placeholder="Enter strategy name" />
+        </a-form-item>
+        
+        <!-- Description -->
+        <a-form-item label="Description">
+          <a-textarea v-model:value="form.description" placeholder="Enter strategy description (optional)" :rows="3" />
+        </a-form-item>
+        
+        <!-- Model Selection -->
+        <a-form-item :label="form.strategy_type === 'openai' ? 'Models' : 'Model Configuration'">
+          <!-- OpenAI Strategy Model Selection -->
+          <div v-if="form.strategy_type === 'openai'">
+            <a-row :gutter="16">
+              <a-col :span="12">
+                <a-select
+                  v-model:value="selectedModel"
+                  placeholder="Search and select models"
+                  show-search
+                  :filter-option="filterOption"
+                  :options="availableModels"
+                  style="width: 100%"
+                />
+              </a-col>
+              <a-col :span="12">
+                <a-button @click="addModel" :disabled="!selectedModel" type="primary">
+                  Add Model
+                </a-button>
+              </a-col>
+            </a-row>
             
-            <a-form-item label="Model Priority Order">
+            <div class="selected-models">
+              <div class="model-list-header">
+                <span>Selected Models (in order of priority):</span>
+                <span class="model-count">{{ form.models.length }} selected</span>
+              </div>
               <div class="model-list">
                 <div
                   v-for="(model, index) in form.models"
-                  :key="model"
+                  :key="model.id"
                   class="model-item"
                 >
-                  <span>{{ model }}</span>
+                  <div class="model-info">
+                    <span class="model-name">{{ model.label }}</span>
+                    <span class="model-provider">{{ model.providerName }}</span>
+                  </div>
                   <div class="model-controls">
                     <a-button 
                       type="link" 
                       size="small" 
-                      @click="moveOpenAIModel(index, -1)"
+                      @click="moveModel(index, -1)"
                       :disabled="index === 0"
+                      title="Move up"
                     >
                       <up-outlined />
                     </a-button>
                     <a-button 
                       type="link" 
                       size="small" 
-                      @click="moveOpenAIModel(index, 1)"
+                      @click="moveModel(index, 1)"
                       :disabled="index === form.models.length - 1"
+                      title="Move down"
                     >
                       <down-outlined />
                     </a-button>
-                    <a-button type="link" size="small" @click="removeOpenAIModel(index)">
+                    <a-button type="link" size="small" @click="removeModel(index)" title="Remove">
                       <close-outlined />
                     </a-button>
                   </div>
                 </div>
+                <div v-if="form.models.length === 0" class="empty-models">
+                  No models selected. Add models from the dropdown above.
+                </div>
               </div>
-            </a-form-item>
+            </div>
           </div>
           
-          <!-- Anthropic Strategy Form -->
-          <div v-else-if="form.type === 'anthropic'">
+          <!-- Anthropic Strategy Model Selection -->
+          <div v-else-if="form.strategy_type === 'anthropic'">
             <a-row :gutter="16">
               <a-col :span="8">
-                <a-form-item label="High Priority Models">
+                <div class="anthropic-tier">
+                  <h4>Big Models</h4>
                   <a-select
-                    v-model:value="selectedAnthropicBigModel"
-                    placeholder="Search high priority models"
+                    v-model:value="selectedBigModel"
+                    placeholder="Search big models"
                     show-search
                     :filter-option="filterOption"
-                    :options="availableAnthropicBigModels"
+                    :options="availableBigModels"
+                    style="width: 100%; margin-bottom: 8px;"
                   />
-                  <a-button
-                    @click="addAnthropicModel('big')"
-                    :disabled="!selectedAnthropicBigModel"
-                    style="margin-top: 8px; width: 100%"
+                  <a-button 
+                    @click="addAnthropicModel('big')" 
+                    :disabled="!selectedBigModel"
+                    type="primary"
+                    size="small"
+                    style="width: 100%"
                   >
-                    Add High Priority Model
+                    Add Big Model
                   </a-button>
                   
                   <div class="model-list" style="margin-top: 8px;">
                     <div
                       v-for="(model, index) in form.big_models"
-                      :key="model"
+                      :key="model.id"
                       class="model-item"
                     >
-                      <span>{{ model }}</span>
+                      <div class="model-info">
+                        <span class="model-name">{{ model.label }}</span>
+                        <span class="model-provider">{{ model.providerName }}</span>
+                      </div>
                       <div class="model-controls">
                         <a-button 
                           type="link" 
                           size="small" 
                           @click="moveAnthropicModel('big', index, -1)"
                           :disabled="index === 0"
+                          title="Move up"
                         >
                           <up-outlined />
                         </a-button>
@@ -272,47 +259,59 @@
                           size="small" 
                           @click="moveAnthropicModel('big', index, 1)"
                           :disabled="index === form.big_models.length - 1"
+                          title="Move down"
                         >
                           <down-outlined />
                         </a-button>
-                        <a-button type="link" size="small" @click="removeAnthropicModel('big', index)">
+                        <a-button type="link" size="small" @click="removeAnthropicModel('big', index)" title="Remove">
                           <close-outlined />
                         </a-button>
                       </div>
                     </div>
+                    <div v-if="form.big_models.length === 0" class="empty-models">
+                      No big models selected
+                    </div>
                   </div>
-                </a-form-item>
+                </div>
               </a-col>
               <a-col :span="8">
-                <a-form-item label="Medium Priority Models">
+                <div class="anthropic-tier">
+                  <h4>Medium Models</h4>
                   <a-select
-                    v-model:value="selectedAnthropicMediumModel"
-                    placeholder="Search medium priority models"
+                    v-model:value="selectedMediumModel"
+                    placeholder="Search medium models"
                     show-search
                     :filter-option="filterOption"
-                    :options="availableAnthropicMediumModels"
+                    :options="availableMediumModels"
+                    style="width: 100%; margin-bottom: 8px;"
                   />
-                  <a-button
-                    @click="addAnthropicModel('medium')"
-                    :disabled="!selectedAnthropicMediumModel"
-                    style="margin-top: 8px; width: 100%"
+                  <a-button 
+                    @click="addAnthropicModel('medium')" 
+                    :disabled="!selectedMediumModel"
+                    type="primary"
+                    size="small"
+                    style="width: 100%"
                   >
-                    Add Medium Priority Model
+                    Add Medium Model
                   </a-button>
                   
                   <div class="model-list" style="margin-top: 8px;">
                     <div
                       v-for="(model, index) in form.medium_models"
-                      :key="model"
+                      :key="model.id"
                       class="model-item"
                     >
-                      <span>{{ model }}</span>
+                      <div class="model-info">
+                        <span class="model-name">{{ model.label }}</span>
+                        <span class="model-provider">{{ model.providerName }}</span>
+                      </div>
                       <div class="model-controls">
                         <a-button 
                           type="link" 
                           size="small" 
                           @click="moveAnthropicModel('medium', index, -1)"
                           :disabled="index === 0"
+                          title="Move up"
                         >
                           <up-outlined />
                         </a-button>
@@ -321,47 +320,59 @@
                           size="small" 
                           @click="moveAnthropicModel('medium', index, 1)"
                           :disabled="index === form.medium_models.length - 1"
+                          title="Move down"
                         >
                           <down-outlined />
                         </a-button>
-                        <a-button type="link" size="small" @click="removeAnthropicModel('medium', index)">
+                        <a-button type="link" size="small" @click="removeAnthropicModel('medium', index)" title="Remove">
                           <close-outlined />
                         </a-button>
                       </div>
                     </div>
+                    <div v-if="form.medium_models.length === 0" class="empty-models">
+                      No medium models selected
+                    </div>
                   </div>
-                </a-form-item>
+                </div>
               </a-col>
               <a-col :span="8">
-                <a-form-item label="Low Priority Models">
+                <div class="anthropic-tier">
+                  <h4>Small Models</h4>
                   <a-select
-                    v-model:value="selectedAnthropicSmallModel"
-                    placeholder="Search low priority models"
+                    v-model:value="selectedSmallModel"
+                    placeholder="Search small models"
                     show-search
                     :filter-option="filterOption"
-                    :options="availableAnthropicSmallModels"
+                    :options="availableSmallModels"
+                    style="width: 100%; margin-bottom: 8px;"
                   />
-                  <a-button
-                    @click="addAnthropicModel('small')"
-                    :disabled="!selectedAnthropicSmallModel"
-                    style="margin-top: 8px; width: 100%"
+                  <a-button 
+                    @click="addAnthropicModel('small')" 
+                    :disabled="!selectedSmallModel"
+                    type="primary"
+                    size="small"
+                    style="width: 100%"
                   >
-                    Add Low Priority Model
+                    Add Small Model
                   </a-button>
                   
                   <div class="model-list" style="margin-top: 8px;">
                     <div
                       v-for="(model, index) in form.small_models"
-                      :key="model"
+                      :key="model.id"
                       class="model-item"
                     >
-                      <span>{{ model }}</span>
+                      <div class="model-info">
+                        <span class="model-name">{{ model.label }}</span>
+                        <span class="model-provider">{{ model.providerName }}</span>
+                      </div>
                       <div class="model-controls">
                         <a-button 
                           type="link" 
                           size="small" 
                           @click="moveAnthropicModel('small', index, -1)"
                           :disabled="index === 0"
+                          title="Move up"
                         >
                           <up-outlined />
                         </a-button>
@@ -370,39 +381,40 @@
                           size="small" 
                           @click="moveAnthropicModel('small', index, 1)"
                           :disabled="index === form.small_models.length - 1"
+                          title="Move down"
                         >
                           <down-outlined />
                         </a-button>
-                        <a-button type="link" size="small" @click="removeAnthropicModel('small', index)">
+                        <a-button type="link" size="small" @click="removeAnthropicModel('small', index)" title="Remove">
                           <close-outlined />
                         </a-button>
                       </div>
                     </div>
+                    <div v-if="form.small_models.length === 0" class="empty-models">
+                      No small models selected
+                    </div>
                   </div>
-                </a-form-item>
+                </div>
               </a-col>
             </a-row>
           </div>
-          
-          <a-form-item label="Enabled">
-            <a-switch v-model:checked="form.is_enabled" />
-          </a-form-item>
-        </a-form>
-      </div>
+        </a-form-item>
+      </a-form>
     </a-modal>
   </div>
 </template>
 
 <script>
 import { message } from 'ant-design-vue'
-import { ref } from 'vue'
+import { ref, computed, watch } from 'vue'
 import {
   PlusOutlined,
   EditOutlined,
   DeleteOutlined,
   CloseOutlined,
   UpOutlined,
-  DownOutlined
+  DownOutlined,
+  InfoCircleOutlined
 } from '@ant-design/icons-vue'
 import api from '@/api'
 
@@ -414,7 +426,8 @@ export default {
     DeleteOutlined,
     CloseOutlined,
     UpOutlined,
-    DownOutlined
+    DownOutlined,
+    InfoCircleOutlined
   },
   data() {
     return {
@@ -422,32 +435,22 @@ export default {
       strategies: [],
       modalVisible: false,
       editingStrategy: null,
-      currentStep: 0,
       form: {
-        type: 'openai',
+        strategy_type: 'openai',
         name: '',
         description: '',
-        fallback_enabled: true,
-        fallback_order: ['large', 'medium', 'small'],
         models: [],
         big_models: [],
         medium_models: [],
-        small_models: [],
-        is_enabled: true
+        small_models: []
       },
-      selectedOpenAIModel: null,
-      selectedAnthropicBigModel: null,
-      selectedAnthropicMediumModel: null,
-      selectedAnthropicSmallModel: null,
-      allModels: [
-        { label: 'OpenAI - gpt-3.5-turbo', value: 'gpt-3.5-turbo', type: 'openai', size: 'medium' },
-        { label: 'OpenAI - gpt-4', value: 'gpt-4', type: 'openai', size: 'big' },
-        { label: 'Anthropic - claude-3-haiku', value: 'claude-3-haiku', type: 'anthropic', size: 'small' },
-        { label: 'Anthropic - claude-3-sonnet', value: 'claude-3-sonnet', type: 'anthropic', size: 'medium' },
-        { label: 'Anthropic - claude-3-opus', value: 'claude-3-opus', type: 'anthropic', size: 'big' }
-      ],
+      selectedModel: null,
+      selectedBigModel: null,
+      selectedMediumModel: null,
+      selectedSmallModel: null,
+      availableModelsData: [],
       rules: {
-        type: [{ required: true, message: 'Please select strategy type' }],
+        strategy_type: [{ required: true, message: 'Please select strategy type' }],
         name: [{ required: true, message: 'Please enter strategy name' }]
       },
       columns: [
@@ -478,80 +481,62 @@ export default {
     }
   },
   computed: {
-    availableOpenAIModels() {
-      const usedModels = this.form.models || []
-      return this.allModels
-        .filter(model => model.type === 'openai' && !usedModels.includes(model.value))
-        .map(model => ({ label: model.label, value: model.value }))
+    availableModels() {
+      const usedModelIds = this.form.models.map(m => m.id)
+      return this.availableModelsData
+        .filter(model => !usedModelIds.includes(model.id))
+        .map(model => ({ label: model.label, value: model.id }))
     },
     
-    availableAnthropicBigModels() {
-      const usedModels = this.form.big_models || []
-      return this.allModels
-        .filter(model => model.type === 'anthropic' && model.size === 'big' && !usedModels.includes(model.value))
-        .map(model => ({ label: model.label, value: model.value }))
+    availableBigModels() {
+      const usedModelIds = this.form.big_models.map(m => m.id)
+      return this.availableModelsData
+        .filter(model => !usedModelIds.includes(model.id))
+        .map(model => ({ label: model.label, value: model.id }))
     },
     
-    availableAnthropicMediumModels() {
-      const usedModels = this.form.medium_models || []
-      return this.allModels
-        .filter(model => model.type === 'anthropic' && model.size === 'medium' && !usedModels.includes(model.value))
-        .map(model => ({ label: model.label, value: model.value }))
+    availableMediumModels() {
+      const usedModelIds = this.form.medium_models.map(m => m.id)
+      return this.availableModelsData
+        .filter(model => !usedModelIds.includes(model.id))
+        .map(model => ({ label: model.label, value: model.id }))
     },
     
-    availableAnthropicSmallModels() {
-      const usedModels = this.form.small_models || []
-      return this.allModels
-        .filter(model => model.type === 'anthropic' && model.size === 'small' && !usedModels.includes(model.value))
-        .map(model => ({ label: model.label, value: model.value }))
-    },
-    
-    isStepValid() {
-      switch (this.currentStep) {
-        case 0:
-          return !!this.form.type
-        case 1:
-          return !!this.form.name
-        case 2:
-          if (this.form.type === 'openai') {
-            return this.form.models && this.form.models.length > 0
-          } else if (this.form.type === 'anthropic') {
-            return (this.form.big_models && this.form.big_models.length > 0) ||
-                   (this.form.medium_models && this.form.medium_models.length > 0) ||
-                   (this.form.small_models && this.form.small_models.length > 0)
-          }
-          return false
-        default:
-          return false
-      }
+    availableSmallModels() {
+      const usedModelIds = this.form.small_models.map(m => m.id)
+      return this.availableModelsData
+        .filter(model => !usedModelIds.includes(model.id))
+        .map(model => ({ label: model.label, value: model.id }))
     },
     
     isFormValid() {
-      return this.isStepValid
+      return this.form.strategy_type && 
+             this.form.name && 
+             this.hasSelectedModels
+    },
+    
+    hasSelectedModels() {
+      if (this.form.strategy_type === 'openai') {
+        return this.form.models.length > 0
+      } else {
+        return this.form.big_models.length > 0 || 
+               this.form.medium_models.length > 0 || 
+               this.form.small_models.length > 0
+      }
     }
   },
   watch: {
+    'form.strategy_type'() {
+      this.loadAvailableModels()
+    },
     modalVisible(newVal) {
       if (newVal) {
-        // When modal becomes visible, wait for DOM to update
         this.$nextTick(() => {
-          // Form references should be available now
-          console.log('Modal opened, form refs:', {
-            formRefStep1: this.$refs.formRefStep1,
-            formRefStep2: this.$refs.formRefStep2,
-            formRefStep3: this.$refs.formRefStep3
-          })
+          if (this.$refs.formRef) {
+            this.$refs.formRef.clearValidate()
+          }
         })
       }
-    },
-    currentStep(newStep, oldStep) {
-      // Use nextTick to wait for DOM to update after step change
-      this.$nextTick(() => {
-        // Clear form validation errors when switching steps
-        if (this.$refs.formRefStep1) this.$refs.formRefStep1.clearValidate()
-        if (this.$refs.formRefStep2) this.$refs.formRefStep2.clearValidate()
-        if (this.$refs.formRefStep3) this.$refs.formRefStep3.clearValidate()
-      })
     }
   },
   async mounted() {
@@ -570,172 +555,146 @@ export default {
       }
     },
     
+    async loadAvailableModels() {
+      if (!this.form.strategy_type) return
+      
+      try {
+        const response = await api.getStrategyModels(this.form.strategy_type)
+        const models = response.models || []
+        // Transform the models to include label field with proper format
+        this.availableModelsData = models.map(model => ({
+          id: model.id,
+          name: model.name,
+          provider_id: model.provider_id,
+          provider_name: model.provider_name,
+          label: `${model.provider_name} - ${model.name}`,
+          modelName: model.name,
+          providerName: model.provider_name
+        }))
+      } catch (error) {
+        message.error('Failed to load available models')
+        this.availableModelsData = []
+      }
+    },
+    
     showAddModal() {
       this.editingStrategy = null
-      this.currentStep = 0
       this.form = {
-        type: 'openai',
+        strategy_type: 'openai',
         name: '',
         description: '',
-        fallback_enabled: true,
-        fallback_order: ['large', 'medium', 'small'],
         models: [],
         big_models: [],
         medium_models: [],
-        small_models: [],
-        is_enabled: true
+        small_models: []
       }
-      this.selectedOpenAIModel = null
-      this.selectedAnthropicBigModel = null
-      this.selectedAnthropicMediumModel = null
-      this.selectedAnthropicSmallModel = null
-      
-      // Use nextTick to ensure modal is visible before resetting form refs
-      this.$nextTick(() => {
-        this.modalVisible = true
-      })
+      this.selectedModel = null
+      this.selectedBigModel = null
+      this.selectedMediumModel = null
+      this.selectedSmallModel = null
+      this.modalVisible = true
+      this.loadAvailableModels()
     },
     
     editStrategy(strategy) {
       this.editingStrategy = strategy
-      this.currentStep = 0
-      
-      // Map the strategy data to form format
       this.form = {
-        type: strategy.strategy_type,
+        strategy_type: strategy.strategy_type,
         name: strategy.name,
         description: strategy.description || '',
-        fallback_enabled: strategy.fallback_enabled,
-        fallback_order: strategy.fallback_order || ['large', 'medium', 'small'],
         models: [],
         big_models: [],
         medium_models: [],
-        small_models: [],
-        is_enabled: strategy.is_active
+        small_models: []
       }
       
       // Extract models from provider mappings
       if (strategy.provider_mappings && strategy.provider_mappings.length > 0) {
-        const mapping = strategy.provider_mappings[0] // Use first mapping for now
+        const mapping = strategy.provider_mappings[0]
         if (strategy.strategy_type === 'openai') {
-          this.form.models = mapping.selected_models || []
+          this.form.models = (mapping.selected_models || []).map(modelName => ({
+            id: `${mapping.provider.id}-${modelName}`,
+            label: `${mapping.provider.name} - ${modelName}`,
+            value: modelName,
+            provider_id: mapping.provider.id,
+            providerName: mapping.provider.name,
+            modelName: modelName
+          }))
         } else {
-          this.form.big_models = mapping.large_models || []
-          this.form.medium_models = mapping.medium_models || []
-          this.form.small_models = mapping.small_models || []
+          this.form.big_models = (mapping.large_models || []).map(modelName => ({
+            id: `${mapping.provider.id}-${modelName}`,
+            label: `${mapping.provider.name} - ${modelName}`,
+            value: modelName,
+            provider_id: mapping.provider.id,
+            providerName: mapping.provider.name,
+            modelName: modelName
+          }))
+          this.form.medium_models = (mapping.medium_models || []).map(modelName => ({
+            id: `${mapping.provider.id}-${modelName}`,
+            label: `${mapping.provider.name} - ${modelName}`,
+            value: modelName,
+            provider_id: mapping.provider.id,
+            providerName: mapping.provider.name,
+            modelName: modelName
+          }))
+          this.form.small_models = (mapping.small_models || []).map(modelName => ({
+            id: `${mapping.provider.id}-${modelName}`,
+            label: `${mapping.provider.name} - ${modelName}`,
+            value: modelName,
+            provider_id: mapping.provider.id,
+            providerName: mapping.provider.name,
+            modelName: modelName
+          }))
         }
       }
       
-      this.selectedOpenAIModel = null
-      this.selectedAnthropicBigModel = null
-      this.selectedAnthropicMediumModel = null
-      this.selectedAnthropicSmallModel = null
-      
-      // Use nextTick to ensure modal is visible before resetting form refs
-      this.$nextTick(() => {
-        this.modalVisible = true
-      })
+      this.selectedModel = null
+      this.selectedBigModel = null
+      this.selectedMediumModel = null
+      this.selectedSmallModel = null
+      this.modalVisible = true
+      this.loadAvailableModels()
     },
     
     handleTypeChange() {
+      // Clear all model selections when type changes
       this.form.models = []
       this.form.big_models = []
       this.form.medium_models = []
       this.form.small_models = []
-      this.selectedOpenAIModel = null
-      this.selectedAnthropicBigModel = null
-      this.selectedAnthropicMediumModel = null
-      this.selectedAnthropicSmallModel = null
-      
-      // Use nextTick to wait for DOM to update after type change
-      this.$nextTick(() => {
-        // Clear form validation errors for all forms
-        if (this.$refs.formRefStep1) this.$refs.formRefStep1.clearValidate()
-        if (this.$refs.formRefStep2) this.$refs.formRefStep2.clearValidate()
-        if (this.$refs.formRefStep3) this.$refs.formRefStep3.clearValidate()
-      })
+      this.selectedModel = null
+      this.selectedBigModel = null
+      this.selectedMediumModel = null
+      this.selectedSmallModel = null
     },
     
     filterOption(input, option) {
       return option.label.toLowerCase().indexOf(input.toLowerCase()) >= 0
     },
     
-    handleModalStep() {
-      // Use nextTick to ensure DOM is updated before validation
-      this.$nextTick(() => {
-        let currentFormRef
-        switch (this.currentStep) {
-          case 0:
-            currentFormRef = this.$refs.formRefStep1
-            break
-          case 1:
-            currentFormRef = this.$refs.formRefStep2
-            break
-          case 2:
-            currentFormRef = this.$refs.formRefStep3
-            break
-          default:
-            console.error('Invalid step:', this.currentStep)
-            return
+    addModel() {
+      if (this.selectedModel) {
+        const model = this.availableModelsData.find(m => m.id === this.selectedModel)
+        if (model && !this.form.models.find(m => m.id === model.id)) {
+          this.form.models.push(model)
+          this.selectedModel = null
         }
-        
-        console.log('Attempting validation for step:', this.currentStep, 'Form ref:', currentFormRef)
-        
-        if (currentFormRef) {
-          currentFormRef.validate().then(() => {
-            console.log('Validation successful for step:', this.currentStep)
-            if (this.currentStep < 2) {
-              this.currentStep++
-            } else {
-              this.handleModalOk()
-            }
-          }).catch(error => {
-            console.error('Form validation failed:', error)
-          })
-        } else {
-          console.error('Form reference is null for step:', this.currentStep)
-          // Try one more time with a longer delay
-          setTimeout(() => {
-            let retryFormRef
-            switch (this.currentStep) {
-              case 0:
-                retryFormRef = this.$refs.formRefStep1
-                break
-              case 1:
-                retryFormRef = this.$refs.formRefStep2
-                break
-              case 2:
-                retryFormRef = this.$refs.formRefStep3
-                break
-            }
-            
-            if (retryFormRef) {
-              retryFormRef.validate().then(() => {
-                if (this.currentStep < 2) {
-                  this.currentStep++
-                } else {
-                  this.handleModalOk()
-                }
-              }).catch(error => {
-                console.error('Form validation failed on retry:', error)
-              })
-            } else {
-              console.error('Form reference still null after retry for step:', this.currentStep)
-            }
-          }, 200) // Increased delay
-        }
-      })
-    },
-    
-    addOpenAIModel() {
-      if (this.selectedOpenAIModel && !this.form.models.includes(this.selectedOpenAIModel)) {
-        this.form.models.push(this.selectedOpenAIModel)
-        this.selectedOpenAIModel = null
       }
     },
     
-    removeOpenAIModel(index) {
+    removeModel(index) {
       this.form.models.splice(index, 1)
+    },
+    
+    moveModel(index, direction) {
+      const newIndex = index + direction
+      if (newIndex >= 0 && newIndex < this.form.models.length) {
+        const models = [...this.form.models]
+        const temp = models[index]
+        models[index] = models[newIndex]
+        models[newIndex] = temp
+        this.form.models = models
+      }
     },
     
     addAnthropicModel(size) {
@@ -743,24 +702,27 @@ export default {
       
       switch (size) {
         case 'big':
-          selectedModel = this.selectedAnthropicBigModel
+          selectedModel = this.selectedBigModel
           targetArray = this.form.big_models
-          this.selectedAnthropicBigModel = null
+          this.selectedBigModel = null
           break
         case 'medium':
-          selectedModel = this.selectedAnthropicMediumModel
+          selectedModel = this.selectedMediumModel
           targetArray = this.form.medium_models
-          this.selectedAnthropicMediumModel = null
+          this.selectedMediumModel = null
           break
         case 'small':
-          selectedModel = this.selectedAnthropicSmallModel
+          selectedModel = this.selectedSmallModel
           targetArray = this.form.small_models
-          this.selectedAnthropicSmallModel = null
+          this.selectedSmallModel = null
           break
       }
       
-      if (selectedModel && !targetArray.includes(selectedModel)) {
-        targetArray.push(selectedModel)
+      if (selectedModel) {
+        const model = this.availableModelsData.find(m => m.id === selectedModel)
+        if (model && !targetArray.find(m => m.id === model.id)) {
+          targetArray.push(model)
+        }
       }
     },
     
@@ -778,61 +740,113 @@ export default {
       }
     },
     
-    handleFormFinish() {
-      // Form validation successful
-      if (this.currentStep < 2) {
-        this.currentStep++
-      } else {
-        this.handleModalOk()
+    moveAnthropicModel(size, index, direction) {
+      let targetArray
+      switch (size) {
+        case 'big':
+          targetArray = this.form.big_models
+          break
+        case 'medium':
+          targetArray = this.form.medium_models
+          break
+        case 'small':
+          targetArray = this.form.small_models
+          break
+      }
+      
+      const newIndex = index + direction
+      if (newIndex >= 0 && newIndex < targetArray.length) {
+        const models = [...targetArray]
+        const temp = models[index]
+        models[index] = models[newIndex]
+        models[newIndex] = temp
+        this.form[size + '_models'] = models
       }
     },
-
+    
     async handleModalOk() {
-      // Validate all forms based on the strategy type
-      const validationPromises = []
-      
-      // Always validate step 1 and 2
-      if (this.$refs.formRefStep1) validationPromises.push(this.$refs.formRefStep1.validate())
-      if (this.$refs.formRefStep2) validationPromises.push(this.$refs.formRefStep2.validate())
-      
-      // Validate step 3 if needed
-      if (this.$refs.formRefStep3) validationPromises.push(this.$refs.formRefStep3.validate())
-      
       try {
-        await Promise.all(validationPromises)
+        await this.$refs.formRef.validate()
         
         const strategyData = {
           name: this.form.name,
-          strategy_type: this.form.type,
+          strategy_type: this.form.strategy_type,
           description: this.form.description || '',
-          fallback_enabled: this.form.fallback_enabled,
-          fallback_order: this.form.fallback_order || ['large', 'medium', 'small'],
-          is_active: this.form.is_enabled,
+          fallback_enabled: false, // Always false as per requirements
+          fallback_order: ['large', 'medium', 'small'], // Default order
+          is_active: false, // Always false initially
           provider_mappings: []
         }
         
-        // Add provider mapping based on strategy type
-        if (this.form.type === 'openai') {
-          strategyData.provider_mappings.push({
-            provider_id: 1, // Default to first provider for now
-            selected_models: this.form.models || [],
-            large_models: [],
-            medium_models: [],
-            small_models: [],
-            priority: 1,
-            is_active: true
+        // Group models by provider
+        const providerModels = {}
+        
+        if (this.form.strategy_type === 'openai') {
+          this.form.models.forEach(model => {
+            if (!providerModels[model.provider_id]) {
+              providerModels[model.provider_id] = {
+                provider_id: model.provider_id,
+                selected_models: [],
+                large_models: [],
+                medium_models: [],
+                small_models: []
+              }
+            }
+            providerModels[model.provider_id].selected_models.push(model.modelName)
           })
-        } else if (this.form.type === 'anthropic') {
-          strategyData.provider_mappings.push({
-            provider_id: 1, // Default to first provider for now
-            selected_models: [],
-            large_models: this.form.big_models || [],
-            medium_models: this.form.medium_models || [],
-            small_models: this.form.small_models || [],
-            priority: 1,
-            is_active: true
+        } else {
+          this.form.big_models.forEach(model => {
+            if (!providerModels[model.provider_id]) {
+              providerModels[model.provider_id] = {
+                provider_id: model.provider_id,
+                selected_models: [],
+                large_models: [],
+                medium_models: [],
+                small_models: []
+              }
+            }
+            providerModels[model.provider_id].large_models.push(model.modelName)
+          })
+          
+          this.form.medium_models.forEach(model => {
+            if (!providerModels[model.provider_id]) {
+              providerModels[model.provider_id] = {
+                provider_id: model.provider_id,
+                selected_models: [],
+                large_models: [],
+                medium_models: [],
+                small_models: []
+              }
+            }
+            providerModels[model.provider_id].medium_models.push(model.modelName)
+          })
+          
+          this.form.small_models.forEach(model => {
+            if (!providerModels[model.provider_id]) {
+              providerModels[model.provider_id] = {
+                provider_id: model.provider_id,
+                selected_models: [],
+                large_models: [],
+                medium_models: [],
+                small_models: []
+              }
+            }
+            providerModels[model.provider_id].small_models.push(model.modelName)
           })
         }
+        
+        // Create provider mappings
+        Object.values(providerModels).forEach((providerModel, index) => {
+          strategyData.provider_mappings.push({
+            provider_id: providerModel.provider_id,
+            selected_models: providerModel.selected_models,
+            large_models: providerModel.large_models,
+            medium_models: providerModel.medium_models,
+            small_models: providerModel.small_models,
+            priority: index + 1,
+            is_active: true
+          })
+        })
         
         if (this.editingStrategy) {
           await api.updateStrategy(this.editingStrategy.id, strategyData)
@@ -845,7 +859,7 @@ export default {
         this.modalVisible = false
         await this.loadStrategies()
       } catch (error) {
-        console.error('Strategy creation error:', error)
+        console.error('Strategy operation error:', error)
         if (error.response?.data) {
           message.error('Validation failed: ' + JSON.stringify(error.response.data))
         } else if (error.message) {
@@ -872,8 +886,13 @@ export default {
     
     async toggleStrategy(strategy, enabled) {
       try {
-        await api.updateStrategy(strategy.id, { ...strategy, is_active: enabled })
-        message.success(`Strategy ${enabled ? 'enabled' : 'disabled'} successfully`)
+        if (enabled) {
+          await api.activateStrategy(strategy.id)
+          message.success('Strategy activated successfully')
+        } else {
+          await api.deactivateStrategy(strategy.id)
+          message.success('Strategy deactivated successfully')
+        }
         await this.loadStrategies()
       } catch (error) {
         message.error('Failed to toggle strategy')
@@ -893,39 +912,42 @@ export default {
       return !!existingEnabled
     },
     
-    moveOpenAIModel(index, direction) {
-      const newIndex = index + direction
-      if (newIndex >= 0 && newIndex < this.form.models.length) {
-        const models = [...this.form.models]
-        const temp = models[index]
-        models[index] = models[newIndex]
-        models[newIndex] = temp
-        this.form.models = models
-      }
-    },
-    
-    moveAnthropicModel(size, index, direction) {
-      let targetArray
-      switch (size) {
-        case 'big':
-          targetArray = this.form.big_models
-          break
-        case 'medium':
-          targetArray = this.form.medium_models
-          break
-        case 'small':
-          targetArray = this.form.small_models
-          break
+    getModelOrderInfo(strategy) {
+      const models = []
+      
+      if (strategy.strategy_type === 'openai') {
+        strategy.provider_mappings?.forEach(mapping => {
+          mapping.selected_models?.forEach(model => {
+            models.push(`${mapping.provider?.name} - ${model}`)
+          })
+        })
+      } else {
+        const tiers = [
+          { name: 'Big', models: [] },
+          { name: 'Medium', models: [] },
+          { name: 'Small', models: [] }
+        ]
+        
+        strategy.provider_mappings?.forEach(mapping => {
+          mapping.large_models?.forEach(model => {
+            tiers[0].models.push(`${mapping.provider?.name} - ${model}`)
+          })
+          mapping.medium_models?.forEach(model => {
+            tiers[1].models.push(`${mapping.provider?.name} - ${model}`)
+          })
+          mapping.small_models?.forEach(model => {
+            tiers[2].models.push(`${mapping.provider?.name} - ${model}`)
+          })
+        })
+        
+        tiers.forEach(tier => {
+          if (tier.models.length > 0) {
+            models.push(`${tier.name}: ${tier.models.join(', ')}`)
+          }
+        })
       }
       
-      const newIndex = index + direction
-      if (newIndex >= 0 && newIndex < targetArray.length) {
-        const models = [...targetArray]
-        const temp = models[index]
-        models[index] = models[newIndex]
-        models[newIndex] = temp
-        this.form[size + '_models'] = models
-      }
+      return models.length > 0 ? models.join('\n') : null
     }
   }
 }
@@ -937,6 +959,72 @@ export default {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 24px;
+}
+
+.models-container {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.provider-models {
+  margin-bottom: 8px;
+}
+
+.provider-name {
+  font-weight: bold;
+  margin-bottom: 4px;
+}
+
+.model-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.anthropic-models {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.model-tier {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.tier-label {
+  font-weight: bold;
+  color: #666;
+}
+
+.model-tag {
+  margin: 0;
+}
+
+.info-icon {
+  color: #1890ff;
+  cursor: pointer;
+  margin-left: 8px;
+}
+
+.selected-models {
+  margin-top: 16px;
+}
+
+.model-list-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+  font-weight: bold;
+}
+
+.model-count {
+  color: #666;
+  font-size: 12px;
 }
 
 .model-list {
@@ -960,5 +1048,43 @@ export default {
 
 .model-item:hover {
   background: #e6f7ff;
+}
+
+.model-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.model-name {
+  font-weight: bold;
+}
+
+.model-provider {
+  font-size: 12px;
+  color: #666;
+}
+
+.model-controls {
+  display: flex;
+  gap: 4px;
+}
+
+.empty-models {
+  text-align: center;
+  color: #999;
+  padding: 16px;
+  font-style: italic;
+}
+
+.anthropic-tier {
+  border: 1px solid #d9d9d9;
+  border-radius: 4px;
+  padding: 12px;
+  height: 100%;
+}
+
+.anthropic-tier h4 {
+  margin: 0 0 12px 0;
+  color: #333;
 }
 </style>

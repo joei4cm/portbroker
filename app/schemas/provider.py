@@ -7,15 +7,20 @@ from pydantic import BaseModel, Field
 class ProviderBase(BaseModel):
     name: str = Field(..., description="Provider name")
     provider_type: str = Field(
-        ..., description="Type of provider (openai, anthropic, google, azure, cohere, mistral, perplexity, custom)"
+        ...,
+        description="Type of provider (openai, anthropic, google, azure, cohere, mistral, perplexity, custom)",
     )
     base_url: str = Field(..., description="Base URL for the provider API")
     api_key: str = Field(..., description="API key for authentication")
-    model_list: List[str] = Field(default_factory=list, description="List of available models")
+    model_list: List[str] = Field(
+        default_factory=list, description="List of available models"
+    )
     is_active: bool = Field(True, description="Whether the provider is active")
     verify_ssl: bool = Field(True, description="Whether to verify SSL certificates")
     max_tokens: Optional[int] = Field(None, description="Maximum tokens limit")
-    temperature_default: Optional[float] = Field(None, description="Default temperature")
+    temperature_default: Optional[float] = Field(
+        None, description="Default temperature"
+    )
     headers: Optional[Dict[str, Any]] = Field(None, description="Additional headers")
     # Legacy fields - kept for backward compatibility
     big_model: Optional[str] = Field(
@@ -76,7 +81,9 @@ class HealthCheckResponse(BaseModel):
     healthy: bool = Field(..., description="Whether provider is healthy")
     response_time: Optional[float] = Field(None, description="Response time in seconds")
     error: Optional[str] = Field(None, description="Error message if check failed")
-    models_available: Optional[int] = Field(None, description="Number of available models")
+    models_available: Optional[int] = Field(
+        None, description="Number of available models"
+    )
 
 
 class ProviderUpdate(BaseModel):
@@ -135,6 +142,7 @@ class APIKeyUpdate(BaseModel):
     description: Optional[str] = None
     is_active: Optional[bool] = None
     is_admin: Optional[bool] = None
+    regenerate: Optional[bool] = None
     expires_at: Optional[datetime] = None
 
 

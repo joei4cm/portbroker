@@ -93,5 +93,46 @@ export default {
   async checkProviderHealth(id) {
     const response = await api.post(`/providers/${id}/health`)
     return response.data
+  },
+
+  async getStrategyModels(strategyType) {
+    const response = await api.get(`/strategy-models?strategy_type=${strategyType}`)
+    return response.data
+  },
+
+  async activateStrategy(id) {
+    const response = await api.post(`/strategies/${id}/activate`)
+    return response.data
+  },
+
+  async deactivateStrategy(id) {
+    const response = await api.post(`/strategies/${id}/deactivate`)
+    return response.data
+  },
+
+  // API Key management
+  async getApiKeys() {
+    const response = await api.get('/api-keys')
+    return response.data
+  },
+
+  async createApiKey(keyData) {
+    const response = await api.post('/api-keys', keyData)
+    return response.data
+  },
+
+  async updateApiKey(id, keyData) {
+    const response = await api.put(`/api-keys/${id}`, keyData)
+    return response.data
+  },
+
+  async deleteApiKey(id) {
+    const response = await api.delete(`/api-keys/${id}`)
+    return response.data
+  },
+
+  async getUserInfo() {
+    const response = await api.get('/user-info')
+    return response.data
   }
 }

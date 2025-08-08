@@ -34,22 +34,27 @@ class StrategyService:
         # Create provider mappings if provided
         if strategy_data.provider_mappings:
             # Validate all providers exist before creating any mappings
-            provider_ids = [mapping.provider_id for mapping in strategy_data.provider_mappings]
-            
+            provider_ids = [
+                mapping.provider_id for mapping in strategy_data.provider_mappings
+            ]
+
             # Check if all providers exist and are active
             existing_providers_result = await db.execute(
                 select(Provider).where(
-                    Provider.id.in_(provider_ids),
-                    Provider.is_active == True
+                    Provider.id.in_(provider_ids), Provider.is_active == True
                 )
             )
-            existing_providers = {p.id: p for p in existing_providers_result.scalars().all()}
-            
+            existing_providers = {
+                p.id: p for p in existing_providers_result.scalars().all()
+            }
+
             # Validate each provider exists
             for mapping_data in strategy_data.provider_mappings:
                 if mapping_data.provider_id not in existing_providers:
-                    raise ValueError(f"Provider not found or inactive: {mapping_data.provider_id}")
-            
+                    raise ValueError(
+                        f"Provider not found or inactive: {mapping_data.provider_id}"
+                    )
+
             # Create mappings after validation
             for mapping_data in strategy_data.provider_mappings:
                 mapping_dict = mapping_data.model_dump()
@@ -600,13 +605,14 @@ class StrategyService:
         # Verify provider exists and is active
         provider_result = await db.execute(
             select(Provider).where(
-                Provider.id == mapping_data.provider_id,
-                Provider.is_active == True
+                Provider.id == mapping_data.provider_id, Provider.is_active == True
             )
         )
         provider = provider_result.scalar_one_or_none()
         if not provider:
-            raise ValueError(f"Provider not found or inactive: {mapping_data.provider_id}")
+            raise ValueError(
+                f"Provider not found or inactive: {mapping_data.provider_id}"
+            )
 
         # Check if mapping already exists
         existing_result = await db.execute(
@@ -668,3 +674,67 @@ class StrategyService:
         await db.commit()
         await db.refresh(mapping)
         return mapping
+
+    @staticmethod
+    async def activate_strategy(db: AsyncSession, strategy_id: int) -> ModelStrategy:
+        """Activate a strategy and deactivate others of the same type"""
+        # Get the strategy
+        result = await db.execute(
+            select(ModelStrategy).where(ModelStrategy.id == strategy_id)
+        )
+        strategy = result.scalar_one_or_none()
+        if not strategy:
+            raise ValueError(f"Strategy not found: {strategy_id}")
+
+        # Deactivate all other strategies of the same type
+        await db.execute(
+            update(ModelStrategy)
+            .where(ModelStrategy.strategy_type == strategy.strategy_type)
+            .where(ModelStrategy.id != strategy_id)
+            .values(is_active=False)
+        )
+
+        # Activate the selected strategy
+        strategy.is_active = True
+        await db.commit()
+        await db.refresh(strategy)
+
+        # Reload with relationships
+        result = await db.execute(
+            select(ModelStrategy)
+            .where(ModelStrategy.id == strategy_id)
+            .options(
+                selectinload(ModelStrategy.provider_mappings).selectinload(
+                    StrategyProviderMapping.provider
+                )
+            )
+        )
+        return result.scalar_one()
+
+    @staticmethod
+    async def deactivate_strategy(db: AsyncSession, strategy_id: int) -> ModelStrategy:
+        """Deactivate a strategy"""
+        # Get the strategy
+        result = await db.execute(
+            select(ModelStrategy).where(ModelStrategy.id == strategy_id)
+        )
+        strategy = result.scalar_one_or_none()
+        if not strategy:
+            raise ValueError(f"Strategy not found: {strategy_id}")
+
+        # Deactivate the strategy
+        strategy.is_active = False
+        await db.commit()
+        await db.refresh(strategy)
+
+        # Reload with relationships
+        result = await db.execute(
+            select(ModelStrategy)
+            .where(ModelStrategy.id == strategy_id)
+            .options(
+                selectinload(ModelStrategy.provider_mappings).selectinload(
+                    StrategyProviderMapping.provider
+                )
+            )
+        )
+        return result.scalar_one()
