@@ -251,7 +251,7 @@ async def get_database_info(session: AsyncSession) -> dict:
 async def init_db():
     """Initialize database with compatibility checking"""
     # Import models to ensure they're registered with SQLAlchemy
-    from app.models.strategy import APIKey, ModelStrategy, Provider
+    from app.models.strategy import APIKey, ModelStrategy, Provider, RequestStatistics
 
     async with AsyncSessionLocal() as session:
         db_info = await get_database_info(session)
@@ -295,7 +295,7 @@ async def create_default_admin_key(session: AsyncSession):
     from sqlalchemy import select
 
     # Import all models to ensure they're registered with SQLAlchemy
-    from app.models.strategy import APIKey, ModelStrategy, Provider
+    from app.models.strategy import APIKey, ModelStrategy, Provider, RequestStatistics
     from app.utils.api_key_generator import generate_openai_style_api_key
 
     # Check if any admin key exists
@@ -320,7 +320,7 @@ async def create_default_admin_key(session: AsyncSession):
         await session.commit()
 
         print("=" * 60)
-        print("🔑 DEFAULT ADMIN KEY CREATED")
+        print("DEFAULT ADMIN KEY CREATED")
         print("=" * 60)
         print(f"Admin Key: {admin_key}")
         print("This key is required to access the Vue.js portal at /portal (frontend)")

@@ -9,10 +9,16 @@ from app.api.v1.router import api_router
 from app.core.auth import get_current_portal_user
 from app.core.config import settings
 from app.core.database import init_db
+from app.core.middleware import ErrorHandlingMiddleware, RequestLoggingMiddleware, StatisticsTrackingMiddleware
+from app.core.logging_utils import setup_structured_logging
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
+    # Setup structured logging
+    setup_structured_logging()
+    
+    # Initialize database
     await init_db()
     yield
 
@@ -24,7 +30,16 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+# Add error handling middleware first
+app.add_middleware(ErrorHandlingMiddleware)
 
+# Add request logging middleware
+app.add_middleware(RequestLoggingMiddleware)
+
+# Add statistics tracking middleware
+app.add_middleware(StatisticsTrackingMiddleware)
+
+# Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],

@@ -129,19 +129,56 @@
         </a-form-item>
         
         <a-form-item label="Available Models" name="model_list">
-          <a-select
-            v-model:value="form.model_list"
-            mode="multiple"
-            placeholder="Select models (validate first)"
-            :options="modelOptions"
-            :filter-option="filterModelOption"
-            :loading="validatingModels"
-            :disabled="availableModels.length === 0"
-          >
-            <template #suffixIcon>
-              <down-outlined />
+          <div style="margin-bottom: 12px;">
+            <a-select
+              v-model:value="form.model_list"
+              mode="multiple"
+              placeholder="Select models (validate first or add custom)"
+              :options="modelOptions"
+              :filter-option="filterModelOption"
+              :loading="validatingModels"
+            >
+              <template #suffixIcon>
+                <down-outlined />
+              </template>
+            </a-select>
+          </div>
+          
+          <!-- Custom Model Input -->
+          <a-card size="small" style="margin-top: 8px;">
+            <template #title>
+              <span style="font-size: 14px;">Add Custom Model</span>
             </template>
-          </a-select>
+            <a-space direction="vertical" style="width: 100%;">
+              <a-input
+                v-model:value="customModelInput"
+                placeholder="Enter custom model name (e.g., custom-model-v1)"
+                @press-enter="addCustomModel"
+              />
+              <a-space>
+                <a-button 
+                  type="primary" 
+                  size="small" 
+                  @click="addCustomModel"
+                  :disabled="!customModelInput.trim()"
+                >
+                  Add Custom Model
+                </a-button>
+                <a-tooltip title="Custom models cannot be automatically verified. Use at your own risk.">
+                  <a-tag color="orange" style="margin: 0;">
+                    ⚠️ Unverified
+                  </a-tag>
+                </a-tooltip>
+              </a-space>
+              <a-alert
+                message="Custom Model Warning"
+                description="Custom models cannot be automatically verified. The system cannot guarantee these models exist or work correctly. Use at your own risk."
+                type="warning"
+                show-icon
+                style="font-size: 12px;"
+              />
+            </a-space>
+          </a-card>
         </a-form-item>
         
         <a-form-item label="Active">
@@ -188,6 +225,8 @@ export default {
       validatingModels: false,
       isSubmitting: false,
       availableModels: [],
+      customModels: [], // Track custom models separately
+      customModelInput: '',
       healthStatus: {},
       form: {
         name: '',
@@ -203,7 +242,7 @@ export default {
         provider_type: [{ required: true, message: 'Please select provider type' }],
         base_url: [{ required: true, message: 'Please enter base URL' }],
         api_key: [{ required: true, message: 'Please enter API key' }],
-        model_list: [{ required: true, message: 'Please select at least one model' }]
+        model_list: [{ required: true, message: 'Please select at least one model or add a custom model' }]
       },
       providerUrls: {
         openai: 'https://api.openai.com/v1',
@@ -268,10 +307,17 @@ export default {
   },
   computed: {
     modelOptions() {
-      return this.availableModels.map(model => ({
+      const verifiedModels = this.availableModels.map(model => ({
         label: model,
         value: model
       }))
+      
+      const customModelOptions = this.customModels.map(model => ({
+        label: `${model} ⚠️ (Custom)`,
+        value: model
+      }))
+      
+      return [...verifiedModels, ...customModelOptions]
     }
   },
   methods: {
@@ -303,7 +349,15 @@ export default {
     editProvider(provider) {
       this.editingProvider = provider
       this.form = { ...provider }
+      
+      // For existing providers, we'll treat all models as available (verified)
+      // since we don't have a way to distinguish between verified and custom models
+      // from the stored data. This is a limitation that could be improved by 
+      // storing model metadata in the database.
       this.availableModels = provider.model_list || []
+      this.customModels = []
+      this.customModelInput = ''
+      
       this.modalVisible = true
       
       // Ensure form reference is available after modal is shown
@@ -326,6 +380,8 @@ export default {
       }
       this.showApiKey = false
       this.availableModels = []
+      this.customModels = []
+      this.customModelInput = ''
       this.validatingModels = false
       this.isSubmitting = false
     },
@@ -337,6 +393,8 @@ export default {
       }
       // Clear models when provider type changes
       this.availableModels = []
+      this.customModels = []
+      this.customModelInput = ''
       this.form.model_list = []
     },
     
@@ -366,6 +424,33 @@ export default {
       } finally {
         this.validatingModels = false
       }
+    },
+    
+    addCustomModel() {
+      const modelName = this.customModelInput.trim()
+      if (!modelName) {
+        message.error('Please enter a model name')
+        return
+      }
+      
+      // Check if model already exists in verified or custom models
+      if (this.availableModels.includes(modelName) || this.customModels.includes(modelName)) {
+        message.error('Model already exists')
+        return
+      }
+      
+      // Add to custom models
+      this.customModels.push(modelName)
+      
+      // Add to form model_list if not already selected
+      if (!this.form.model_list.includes(modelName)) {
+        this.form.model_list.push(modelName)
+      }
+      
+      // Clear input
+      this.customModelInput = ''
+      
+      message.success(`Custom model "${modelName}" added with warning`)
     },
     
     filterModelOption(input, option) {

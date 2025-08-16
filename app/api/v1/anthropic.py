@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import AsyncGenerator, Optional
 
 import httpx
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -88,16 +88,17 @@ async def stream_anthropic_response(
 
 @router.post("/messages")
 async def create_message(
-    request: AnthropicRequest,
+    anthropic_request: AnthropicRequest,
+    fastapi_request: Request,
     db: AsyncSession = Depends(get_db),
     api_key: dict = Depends(get_current_api_key),
 ):
     try:
-        openai_request = TranslationService.anthropic_to_openai_request(request)
+        openai_request = TranslationService.anthropic_to_openai_request(anthropic_request)
 
-        if request.stream:
+        if anthropic_request.stream:
             openai_response = await ProviderService.try_providers_until_success(
-                db, openai_request, stream=True
+                db, openai_request, stream=True, fastapi_request=fastapi_request
             )
             if isinstance(openai_response, httpx.Response):
                 return StreamingResponse(
@@ -115,7 +116,7 @@ async def create_message(
                 )
         else:
             openai_response_data = await ProviderService.try_providers_until_success(
-                db, openai_request, stream=False
+                db, openai_request, stream=False, fastapi_request=fastapi_request
             )
 
             content_blocks = []
@@ -143,7 +144,7 @@ async def create_message(
             anthropic_response = AnthropicResponse(
                 id=openai_response_data.get("id", f"msg_{uuid.uuid4().hex[:8]}"),
                 content=content_blocks,
-                model=request.model,
+                model=anthropic_request.model,
                 stop_reason=StopReason.end_turn,
                 usage={
                     "input_tokens": openai_response_data.get("usage", {}).get(

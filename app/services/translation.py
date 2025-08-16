@@ -242,7 +242,7 @@ class TranslationService:
                                 )
                 content = formatted_content if formatted_content else str(content)
 
-            messages.append(ChatMessage(role=str(msg.role), content=content))  # type: ignore
+            messages.append(ChatMessage(role=msg.role.value if hasattr(msg.role, 'value') else str(msg.role), content=content))  # type: ignore
 
         return ChatCompletionRequest(
             model=anthropic_request.model,
@@ -306,7 +306,7 @@ class TranslationService:
                                 )
                 content = formatted_content if formatted_content else str(content)
 
-            messages.append(ChatMessage(role=str(msg.role), content=content))  # type: ignore
+            messages.append(ChatMessage(role=msg.role.value if hasattr(msg.role, 'value') else str(msg.role), content=content))  # type: ignore
 
         return ChatCompletionRequest(
             model=count_tokens_request.model,

@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import AsyncGenerator, Optional
 
 import httpx
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -41,13 +41,14 @@ async def stream_response(response: httpx.Response) -> AsyncGenerator[str, None]
 @router.post("/chat/completions")
 async def chat_completions(
     request: ChatCompletionRequest,
+    fastapi_request: Request,
     db: AsyncSession = Depends(get_db),
     api_key: dict = Depends(get_current_api_key),
 ):
     try:
         if request.stream:
             response = await ProviderService.try_providers_until_success(
-                db, request, stream=True
+                db, request, stream=True, fastapi_request=fastapi_request
             )
             if isinstance(response, httpx.Response):
                 return StreamingResponse(
@@ -61,7 +62,7 @@ async def chat_completions(
                 )
         else:
             response_data = await ProviderService.try_providers_until_success(
-                db, request, stream=False
+                db, request, stream=False, fastapi_request=fastapi_request
             )
             return response_data
 

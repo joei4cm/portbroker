@@ -122,3 +122,56 @@ class APIKey(Base):
     expires_at = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+
+class RequestStatistics(Base):
+    """Request statistics tracking for providers and strategies"""
+
+    __tablename__ = "request_statistics"
+
+    id = Column(Integer, primary_key=True, index=True)
+    
+    # Request tracking
+    trace_id = Column(String(50), nullable=False, index=True)
+    endpoint = Column(String(100), nullable=False)  # /api/anthropic/v1/messages, /api/v1/chat/completions
+    method = Column(String(10), nullable=False)  # POST, GET, etc.
+    
+    # Provider and strategy tracking
+    provider_id = Column(Integer, ForeignKey("providers.id"), nullable=True)
+    provider_name = Column(String(100), nullable=True)  # Denormalized for performance
+    strategy_id = Column(Integer, ForeignKey("model_strategies.id"), nullable=True)
+    strategy_name = Column(String(100), nullable=True)  # Denormalized for performance
+    strategy_type = Column(String(20), nullable=True)  # anthropic, openai
+    
+    # Model information
+    requested_model = Column(String(100), nullable=True)  # Original model requested
+    actual_model = Column(String(100), nullable=True)  # Actual model used by provider
+    model_tier = Column(String(20), nullable=True)  # small, medium, large
+    
+    # Request details
+    status_code = Column(Integer, nullable=False)
+    duration_ms = Column(Integer, nullable=False)  # Request duration in milliseconds
+    request_size = Column(Integer, nullable=True)  # Request size in bytes
+    response_size = Column(Integer, nullable=True)  # Response size in bytes
+    
+    # Token usage (if available)
+    input_tokens = Column(Integer, nullable=True)
+    output_tokens = Column(Integer, nullable=True)
+    total_tokens = Column(Integer, nullable=True)
+    
+    # Error tracking
+    error_code = Column(String(50), nullable=True)
+    error_message = Column(Text, nullable=True)
+    
+    # Client information
+    client_ip = Column(String(50), nullable=True)
+    user_agent = Column(String(500), nullable=True)
+    api_key_id = Column(Integer, ForeignKey("api_keys.id"), nullable=True)
+    
+    # Metadata
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+    
+    # Relationships
+    provider = relationship("Provider")
+    strategy = relationship("ModelStrategy")
+    api_key = relationship("APIKey")

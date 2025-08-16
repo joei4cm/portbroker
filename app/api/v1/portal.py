@@ -1,6 +1,6 @@
-from typing import List
+from typing import Dict, List
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import Response
 from pydantic import BaseModel
 from sqlalchemy import delete, select
@@ -222,3 +222,58 @@ async def update_provider(
     await db.commit()
     await db.refresh(provider)
     return provider
+
+
+# Statistics endpoints
+@router.get("/statistics/dashboard")
+async def get_dashboard_statistics(
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_portal_user),
+):
+    """Get dashboard statistics"""
+    from app.services.statistics_service import StatisticsService
+    return await StatisticsService.get_dashboard_stats(db)
+
+
+@router.get("/statistics/providers")
+async def get_provider_statistics(
+    days: int = Query(7, description="Number of days to look back"),
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_portal_user),
+):
+    """Get provider usage statistics"""
+    from app.services.statistics_service import StatisticsService
+    return await StatisticsService.get_provider_stats(db, days)
+
+
+@router.get("/statistics/strategies")
+async def get_strategy_statistics(
+    days: int = Query(7, description="Number of days to look back"),
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_portal_user),
+):
+    """Get strategy usage statistics"""
+    from app.services.statistics_service import StatisticsService
+    return await StatisticsService.get_strategy_stats(db, days)
+
+
+@router.get("/statistics/activity")
+async def get_recent_activity(
+    limit: int = Query(10, description="Number of recent activities to return"),
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_portal_user),
+):
+    """Get recent activity for dashboard"""
+    from app.services.statistics_service import StatisticsService
+    return await StatisticsService.get_recent_activity(db, limit)
+
+
+@router.get("/statistics/hourly")
+async def get_hourly_statistics(
+    hours: int = Query(24, description="Number of hours to look back"),
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_portal_user),
+):
+    """Get hourly request statistics"""
+    from app.services.statistics_service import StatisticsService
+    return await StatisticsService.get_hourly_request_counts(db, hours)

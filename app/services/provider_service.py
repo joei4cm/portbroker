@@ -1,6 +1,7 @@
 from typing import Any, Dict, List, Optional
 
 import httpx
+from fastapi import Request
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -75,7 +76,7 @@ class ProviderService:
 
     @staticmethod
     async def try_providers_until_success(
-        db: AsyncSession, request: ChatCompletionRequest, stream: bool = False
+        db: AsyncSession, request: ChatCompletionRequest, stream: bool = False, fastapi_request: Optional[Request] = None
     ) -> Dict[str, Any]:
         providers = await ProviderService.get_active_providers(db)
 
@@ -86,9 +87,27 @@ class ProviderService:
 
         for provider in providers:
             try:
-                return await ProviderService.call_provider_api(
+                # Store provider info in FastAPI request state for tracking
+                if fastapi_request:
+                    fastapi_request.state.provider_info = {
+                        "id": provider.id,
+                        "name": provider.name
+                    }
+                    fastapi_request.state.model_info = {
+                        "requested": request.model,
+                        "tier": "medium"  # Default, could be enhanced based on model mapping
+                    }
+                
+                response = await ProviderService.call_provider_api(
                     provider, request, stream
                 )
+                
+                # Update model info with actual model used
+                if fastapi_request and hasattr(fastapi_request.state, 'model_info'):
+                    mapped_model = provider.medium_model or "unknown"
+                    fastapi_request.state.model_info["actual"] = mapped_model
+                
+                return response
             except Exception as e:
                 last_error = e
                 continue

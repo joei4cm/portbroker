@@ -56,12 +56,6 @@ npm run build
 
 # Preview production build
 npm run preview
-
-# Type checking
-npm run type-check
-
-# Linting
-npm run lint
 ```
 
 ### Code Quality
@@ -105,6 +99,9 @@ uv run pytest -m unit          # Unit tests only
 uv run pytest -m integration   # Integration tests only
 uv run pytest -m api           # API tests only
 uv run pytest -m portal        # Portal tests only
+
+# Run tests excluding slow tests
+uv run pytest -m "not slow"
 ```
 
 ### Testing Guidelines
@@ -122,6 +119,7 @@ uv run pytest -m portal        # Portal tests only
 - **Portal UI**: Login, navigation, and role-based access must be tested
 - **Database Operations**: CRUD operations must be tested with proper cleanup
 - **Error Handling**: All error paths must have corresponding tests
+- **Minimum Coverage**: Tests must maintain at least 80% code coverage (enforced by pytest configuration)
 
 **Test Structure**:
 - `test_api.py`: Core API functionality and endpoints
@@ -132,6 +130,8 @@ uv run pytest -m portal        # Portal tests only
 - `test_translation.py`: API translation service
 - `test_utils.py`: Utility functions and helpers
 - `test_strategies.py`: Strategy management and model mapping
+- `test_duplicate_providers.py`: Provider uniqueness validation
+- `test_api_key_regeneration.py`: API key regeneration functionality
 - `conftest.py`: Test configuration and fixtures
 
 **Testing Best Practices**:
@@ -285,6 +285,11 @@ Key tables:
 - `model_strategies`: Strategy definitions with fallback logic and routing rules
 - `strategy_provider_mappings`: Many-to-many mapping between strategies and providers with priorities
 
+**Database Migration**:
+- Uses Alembic for database schema migrations
+- Automatically initializes database on first run
+- Run `uv run alembic upgrade head` to apply migrations manually if needed
+
 ### Strategy System
 
 The strategy system enables intelligent routing across multiple providers:
@@ -343,5 +348,6 @@ The Vue.js portal provides a comprehensive management interface:
 - Vue.js 3 with Composition API
 - Ant Design Vue for UI components
 - Vite for build tooling
-- TypeScript for type safety
 - Axios for HTTP requests
+- Vue Router for navigation
+- Development proxy configured for backend integration

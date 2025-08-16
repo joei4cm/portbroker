@@ -64,7 +64,7 @@ async def validate_provider_models(
         if request.provider_type == "openai":
             models_endpoint = f"{request.base_url.rstrip('/')}/models"
         elif request.provider_type == "anthropic":
-            models_endpoint = f"{request.base_url.rstrip('/')}/messages"
+            models_endpoint = f"{request.base_url.rstrip('/')}/models"
         elif request.provider_type == "google":
             # Google Gemini models are discovered via API key validation
             return await _validate_google_gemini(request, headers)
@@ -90,6 +90,11 @@ async def validate_provider_models(
 
             if response.status_code == 200:
                 data = response.json()
+                
+                # Debug logging for Anthropic providers to understand response format
+                if request.provider_type == "anthropic":
+                    print(f"DEBUG: Anthropic models response: {data}")
+                
                 models = await _extract_models_from_response(
                     request.provider_type, data
                 )
@@ -162,7 +167,7 @@ async def check_provider_health(
         if provider.provider_type == "openai":
             health_endpoint = f"{provider.base_url.rstrip('/')}/models"
         elif provider.provider_type == "anthropic":
-            health_endpoint = f"{provider.base_url.rstrip('/')}/messages"
+            health_endpoint = f"{provider.base_url.rstrip('/')}/models"
         elif provider.provider_type == "google":
             # For Google, we'll check if the API key is valid
             return await _check_google_health(provider, headers)
@@ -213,12 +218,23 @@ async def _extract_models_from_response(
     if provider_type == "openai":
         models = [model["id"] for model in data.get("data", [])]
     elif provider_type == "anthropic":
-        # Anthropic doesn't have a models endpoint, return default models
-        models = [
-            "claude-3-haiku-20240307",
-            "claude-3-sonnet-20240229",
-            "claude-3-opus-20240229",
-        ]
+        # Try to extract models from the response, fallback to default Claude models if needed
+        if "data" in data:
+            # Standard OpenAI-compatible format
+            models = [model["id"] for model in data.get("data", [])]
+        elif "models" in data:
+            # Alternative format - models as array
+            models = [model["id"] if isinstance(model, dict) else model for model in data.get("models", [])]
+        elif isinstance(data, list):
+            # Direct array of models
+            models = [model["id"] if isinstance(model, dict) else model for model in data]
+        else:
+            # Fallback to default Claude models if format is unrecognized
+            models = [
+                "claude-3-haiku-20240307", 
+                "claude-3-sonnet-20240229",
+                "claude-3-opus-20240229",
+            ]
     elif provider_type == "azure":
         models = [model["id"] for model in data.get("data", [])]
     elif provider_type == "cohere":
