@@ -78,6 +78,7 @@ class TestProviderService:
         provider.small_model = None
         provider.medium_model = None
         provider.big_model = None
+        provider.verify_ssl = True
 
         # Mock request
         request = Mock()
@@ -92,6 +93,8 @@ class TestProviderService:
             mock_response = Mock()
             mock_response.json.return_value = {"id": "test-response"}
             mock_response.raise_for_status.return_value = None
+            mock_response.headers = {"content-type": "application/json"}
+            mock_response.status_code = 200
 
             mock_client.return_value.__aenter__.return_value.post.return_value = (
                 mock_response
@@ -113,6 +116,7 @@ class TestProviderService:
         provider.small_model = None
         provider.medium_model = None
         provider.big_model = None
+        provider.verify_ssl = True
 
         # Mock request
         request = Mock()
@@ -122,17 +126,17 @@ class TestProviderService:
             "messages": [{"role": "user", "content": "Hello"}],
         }
 
-        # Mock httpx response
-        with patch("app.services.provider_service.httpx.AsyncClient") as mock_client:
-            mock_response = Mock()
+        # Test streaming mode - should return streaming info dict
+        result = await ProviderService.call_provider_api(provider, request, True)
 
-            mock_client.return_value.__aenter__.return_value.post.return_value = (
-                mock_response
-            )
-
-            result = await ProviderService.call_provider_api(provider, request, True)
-
-            assert result == mock_response
+        # For streaming, should return a dictionary with streaming info
+        assert isinstance(result, dict)
+        assert result["stream"] is True
+        assert result["provider"] == provider
+        assert "headers" in result
+        assert "request_data" in result
+        assert result["headers"]["Authorization"] == "Bearer test-key"
+        assert result["headers"]["Content-Type"] == "application/json"
 
     @pytest.mark.asyncio
     async def test_try_providers_until_success(self, test_db):

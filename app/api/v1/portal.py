@@ -1,4 +1,5 @@
 from typing import Dict, List
+from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import Response
@@ -16,6 +17,19 @@ from app.utils.api_key_generator import (
 )
 
 router = APIRouter()
+
+
+def parse_datetime_string(dt_string: str) -> datetime:
+    """Parse datetime string in ISO format to datetime object"""
+    try:
+        # Try to parse ISO format datetime string
+        if dt_string.endswith('Z'):
+            # Handle UTC timezone
+            dt_string = dt_string[:-1] + '+00:00'
+        return datetime.fromisoformat(dt_string)
+    except (ValueError, TypeError):
+        # If parsing fails, return None
+        return None
 
 
 class LoginRequest(BaseModel):
@@ -101,9 +115,10 @@ async def update_api_key(
         generated_key = generate_openai_style_api_key()
         api_key.api_key = generated_key
 
-    # Update other fields
+    # Update other fields (exclude datetime fields and auto-generated fields)
+    excluded_fields = {"id", "created_at", "updated_at", "api_key"}
     for field, value in key_data.items():
-        if field != "regenerate" and value is not None:
+        if field != "regenerate" and value is not None and field not in excluded_fields:
             setattr(api_key, field, value)
 
     await db.commit()
@@ -214,10 +229,26 @@ async def update_provider(
         if existing_provider:
             raise HTTPException(status_code=400, detail=f"Provider with name '{provider_data['name']}' already exists")
     
-    # Update fields
-    for field, value in provider_data.items():
-        if value is not None:
-            setattr(provider, field, value)
+    # Handle datetime fields specifically
+    if "created_at" in provider_data and provider_data["created_at"] is not None:
+        if isinstance(provider_data["created_at"], str):
+            parsed_dt = parse_datetime_string(provider_data["created_at"])
+            if parsed_dt:
+                provider.created_at = parsed_dt
+    
+    # Update fields manually (exclude auto-generated fields)
+    # Only update fields that are present in the request data
+    update_fields = [
+        "name", "provider_type", "base_url", "api_key", "model_list",
+        "small_model", "medium_model", "big_model", "headers", 
+        "max_tokens", "temperature_default", "verify_ssl", "is_active"
+    ]
+    
+    for field in update_fields:
+        if field in provider_data:
+            # Only update if the value is not None or if it's a boolean/number that can be None
+            if provider_data[field] is not None or isinstance(provider_data[field], (bool, int, float)):
+                setattr(provider, field, provider_data[field])
 
     await db.commit()
     await db.refresh(provider)
@@ -277,3 +308,127 @@ async def get_hourly_statistics(
     """Get hourly request statistics"""
     from app.services.statistics_service import StatisticsService
     return await StatisticsService.get_hourly_request_counts(db, hours)
+
+
+# Strategy endpoints for portal compatibility
+@router.get("/strategy-models")
+async def get_strategy_models(
+    strategy_type: str = Query(..., description="Strategy type (anthropic or openai)"),
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_portal_user),
+):
+    """Get available models for a specific strategy type from all providers"""
+    from app.services.strategy_service import StrategyService
+    try:
+        return await StrategyService.get_available_models_by_strategy_type(db, strategy_type)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.get("/strategies")
+async def get_portal_strategies(
+    strategy_type: str = Query(None, description="Filter by strategy type (anthropic or openai)"),
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_portal_user),
+):
+    """Get all model strategies for portal"""
+    from app.services.strategy_service import StrategyService
+    return await StrategyService.get_strategies(db, strategy_type)
+
+
+@router.post("/strategies")
+async def create_portal_strategy(
+    strategy_data: dict,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_admin_user),
+):
+    """Create a new model strategy for portal"""
+    from app.services.strategy_service import StrategyService
+    from app.schemas.strategy import ModelStrategyCreate
+    
+    # Check if this is old format (has provider_id field)
+    if "provider_id" in strategy_data:
+        # Convert old format to new format
+        from app.api.v1.strategies import convert_old_strategy_to_new
+        strategy_data_copy = strategy_data.copy()
+        new_strategy_data = convert_old_strategy_to_new(strategy_data_copy)
+        return await StrategyService.create_strategy(db, new_strategy_data)
+    else:
+        # Already in new format
+        new_strategy_data = ModelStrategyCreate(**strategy_data)
+        return await StrategyService.create_strategy(db, new_strategy_data)
+
+
+@router.put("/strategies/{strategy_id}")
+async def update_portal_strategy(
+    strategy_id: int,
+    strategy_data: dict,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_admin_user),
+):
+    """Update a model strategy for portal"""
+    from app.services.strategy_service import StrategyService
+    from app.schemas.strategy import ModelStrategyUpdate
+    
+    # Check if this is old format (has provider_id field)
+    if "provider_id" in strategy_data:
+        # Convert old format to new format
+        from app.api.v1.strategies import convert_old_strategy_to_new
+        strategy_data_copy = strategy_data.copy()
+        new_strategy_data = convert_old_strategy_to_new(strategy_data_copy)
+        # Convert to update format
+        update_data = ModelStrategyUpdate(**new_strategy_data.model_dump())
+    else:
+        # Already in new format
+        update_data = ModelStrategyUpdate(**strategy_data)
+
+    strategy = await StrategyService.update_strategy(db, strategy_id, update_data)
+    if not strategy:
+        raise HTTPException(status_code=404, detail="Strategy not found")
+    return strategy
+
+
+@router.delete("/strategies/{strategy_id}")
+async def delete_portal_strategy(
+    strategy_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_admin_user),
+):
+    """Delete a model strategy for portal"""
+    from app.services.strategy_service import StrategyService
+    success = await StrategyService.delete_strategy(db, strategy_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="Strategy not found")
+    return {"detail": "Strategy deleted successfully"}
+
+
+@router.post("/strategies/{strategy_id}/activate")
+async def activate_portal_strategy(
+    strategy_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_admin_user),
+):
+    """Activate a strategy for portal"""
+    from app.services.strategy_service import StrategyService
+    try:
+        strategy = await StrategyService.activate_strategy(db, strategy_id)
+        return strategy
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+
+@router.post("/strategies/{strategy_id}/deactivate")
+async def deactivate_portal_strategy(
+    strategy_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_admin_user),
+):
+    """Deactivate a strategy for portal"""
+    from app.services.strategy_service import StrategyService
+    try:
+        strategy = await StrategyService.deactivate_strategy(db, strategy_id)
+        return strategy
+    except Exception as e:
+        raise HTTPException(status_code=404, detail=str(e))

@@ -348,7 +348,17 @@ export default {
     
     editProvider(provider) {
       this.editingProvider = provider
-      this.form = { ...provider }
+      
+      // Only populate form with editable fields
+      this.form = {
+        name: provider.name,
+        provider_type: provider.provider_type,
+        base_url: provider.base_url,
+        api_key: provider.api_key,
+        model_list: provider.model_list || [],
+        verify_ssl: provider.verify_ssl,
+        is_active: provider.is_active
+      }
       
       // For existing providers, we'll treat all models as available (verified)
       // since we don't have a way to distinguish between verified and custom models
@@ -490,26 +500,6 @@ export default {
           )
           if (duplicateProvider) {
             throw new Error('Provider with this name already exists')
-          }
-        }
-        
-        // Refresh providers list to ensure we have the latest data
-        await this.loadProviders()
-        
-        // Double-check for duplicates after refresh
-        if (!this.editingProvider) {
-          const existingProvider = this.providers.find(p => p.name === this.form.name)
-          if (existingProvider) {
-            throw new Error('Provider with this name already exists. Please refresh the page and try again.')
-          }
-        }
-        
-        if (this.editingProvider) {
-          const duplicateProvider = this.providers.find(p => 
-            p.name === this.form.name && p.id !== this.editingProvider.id
-          )
-          if (duplicateProvider) {
-            throw new Error('Provider with this name already exists. Please refresh the page and try again.')
           }
         }
         

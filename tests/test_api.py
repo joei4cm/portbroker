@@ -12,7 +12,7 @@ class TestAPIEndpoints:
     def test_chat_completions_endpoint(self, client):
         """Test the chat completions endpoint"""
         response = client.post(
-            "/v1/chat/completions",
+            "/api/v1/chat/completions",
             json={
                 "model": "gpt-4",
                 "messages": [{"role": "user", "content": "Hello, world!"}],

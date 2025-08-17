@@ -193,6 +193,48 @@ async def get_current_admin_user(
     return user_info
 
 
+async def get_hybrid_auth(
+    request: Request, 
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
+    db: AsyncSession = Depends(get_db)
+) -> dict:
+    """
+    Hybrid authentication that accepts both API keys and JWT tokens
+    Returns user info with admin status and the original API key if available
+    """
+    # First try API key authentication
+    if credentials:
+        try:
+            api_key = await get_current_admin_api_key(credentials, db)
+            return {
+                "username": f"api_user_{api_key.api_key[:20]}",
+                "is_admin": api_key.is_admin,
+                "api_key": api_key.api_key,
+                "auth_type": "api_key"
+            }
+        except HTTPException:
+            pass  # Continue to JWT authentication
+    
+    # Then try JWT token authentication
+    try:
+        user_info = await get_current_portal_user(request, db)
+        return {
+            "username": user_info["username"],
+            "is_admin": user_info["is_admin"],
+            "api_key": user_info["api_key"],
+            "auth_type": "jwt"
+        }
+    except HTTPException:
+        pass
+    
+    # If neither authentication method works
+    raise HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Valid authentication required (API key or JWT token)",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+
+
 async def login_for_access_token(api_key: str, db: AsyncSession) -> dict:
     """Login and return access token for portal"""
     if not await authenticate_portal_api_key(api_key, db):

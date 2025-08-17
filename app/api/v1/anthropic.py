@@ -32,6 +32,17 @@ from app.schemas.anthropic import (
 from app.services.provider_service import ProviderService
 from app.services.translation import TranslationService
 
+def map_openai_finish_reason_to_anthropic(finish_reason: str) -> StopReason:
+    """Map OpenAI finish_reason to Anthropic StopReason enum"""
+    mapping = {
+        "stop": StopReason.end_turn,
+        "length": StopReason.max_tokens,
+        "content_filter": StopReason.end_turn,
+        "tool_calls": StopReason.tool_use,
+    }
+    return mapping.get(finish_reason, StopReason.end_turn)
+
+
 router = APIRouter()
 
 
@@ -45,8 +56,12 @@ async def stream_anthropic_response(
         yield f'event: message_start\ndata: {json.dumps({"type": "message_start", "message": {"id": message_id, "type": "message", "role": "assistant", "content": [], "model": "claude-3-sonnet-20240229", "stop_reason": None, "stop_sequence": None, "usage": {"input_tokens": 0, "output_tokens": 0}}})}\n\n'
 
         async for chunk in openai_response.aiter_text():
-            if chunk.strip() and chunk.startswith("data: "):
-                data_part = chunk[6:].strip()
+            if chunk.strip():
+                # Handle both raw JSON and SSE-formatted chunks
+                data_part = chunk
+                if chunk.startswith("data: "):
+                    data_part = chunk[6:].strip()
+                
                 if data_part == "[DONE]":
                     yield 'event: message_stop\ndata: {"type": "message_stop"}\n\n'
                     break
@@ -73,7 +88,14 @@ async def stream_anthropic_response(
 
                         if openai_chunk.get("usage"):
                             usage = openai_chunk["usage"]
-                            yield f'event: message_delta\ndata: {json.dumps({"type": "message_delta", "delta": {"stop_reason": "end_turn", "stop_sequence": None}, "usage": {"input_tokens": usage.get("prompt_tokens", 0), "output_tokens": usage.get("completion_tokens", 0)}})}\n\n'
+                            # Map finish_reason from OpenAI to Anthropic StopReason
+                            finish_reason = "end_turn"
+                            if openai_chunk.get("choices") and len(openai_chunk["choices"]) > 0:
+                                choice = openai_chunk["choices"][0]
+                                if choice.get("finish_reason"):
+                                    finish_reason = map_openai_finish_reason_to_anthropic(choice["finish_reason"]).value
+                            
+                            yield f'event: message_delta\ndata: {json.dumps({"type": "message_delta", "delta": {"stop_reason": finish_reason, "stop_sequence": None}, "usage": {"input_tokens": usage.get("prompt_tokens", 0), "output_tokens": usage.get("completion_tokens", 0)}})}\n\n'
 
                 except json.JSONDecodeError:
                     continue
@@ -97,12 +119,82 @@ async def create_message(
         openai_request = TranslationService.anthropic_to_openai_request(anthropic_request)
 
         if anthropic_request.stream:
-            openai_response = await ProviderService.try_providers_until_success(
+            streaming_info = await ProviderService.try_providers_until_success(
                 db, openai_request, stream=True, fastapi_request=fastapi_request
             )
-            if isinstance(openai_response, httpx.Response):
+            
+            if isinstance(streaming_info, dict) and streaming_info.get("stream"):
+                # Create the actual streaming response
+                provider = streaming_info["provider"]
+                headers = streaming_info["headers"]
+                request_data = streaming_info["request_data"]
+                
+                async def generate_anthropic_stream():
+                    try:
+                        message_id = str(uuid.uuid4())
+                        message_started = False
+                        
+                        # Send message_start event
+                        yield f'event: message_start\ndata: {json.dumps({"type": "message_start", "message": {"id": message_id, "type": "message", "role": "assistant", "content": [], "model": anthropic_request.model, "stop_reason": None, "stop_sequence": None, "usage": {"input_tokens": 0, "output_tokens": 0}}})}\n\n'
+                        
+                        async with httpx.AsyncClient(
+                            timeout=300.0, verify=provider.verify_ssl
+                        ) as client:
+                            async with client.stream(
+                                "POST",
+                                f"{provider.base_url.rstrip('/')}/chat/completions",
+                                headers=headers,
+                                json=request_data,
+                            ) as response:
+                                async for chunk in response.aiter_text():
+                                    if chunk.strip():
+                                        # Convert OpenAI streaming to Anthropic streaming format
+                                        # Handle both raw JSON and SSE-formatted chunks
+                                        data = chunk
+                                        if chunk.startswith("data: "):
+                                            data = chunk[6:].strip()
+                                        
+                                        if data.strip() == "[DONE]":
+                                            yield 'event: message_stop\ndata: {"type": "message_stop"}\n\n'
+                                            break
+                                        
+                                        try:
+                                            parsed = json.loads(data)
+                                            if parsed.get("choices") and len(parsed["choices"]) > 0:
+                                                delta = parsed["choices"][0].get("delta", {})
+                                                if "content" in delta and delta["content"]:
+                                                    if not message_started:
+                                                        yield f'event: content_block_start\ndata: {json.dumps({"type": "content_block_start", "index": 0, "content_block": {"type": "text", "text": ""}})}\n\n'
+                                                        message_started = True
+                                                    
+                                                    # Ensure newlines are properly handled
+                                                    content = delta["content"]
+                                                    yield f'event: content_block_delta\ndata: {json.dumps({"type": "content_block_delta", "index": 0, "delta": {"type": "text_delta", "text": content}})}\n\n'
+                                                
+                                                if parsed.get("usage"):
+                                                    usage = parsed["usage"]
+                                                    # Map finish_reason from OpenAI to Anthropic StopReason
+                                                    finish_reason = "end_turn"
+                                                    if parsed.get("choices") and len(parsed["choices"]) > 0:
+                                                        choice = parsed["choices"][0]
+                                                        if choice.get("finish_reason"):
+                                                            finish_reason = map_openai_finish_reason_to_anthropic(choice["finish_reason"]).value
+                                                    
+                                                    yield f'event: message_delta\ndata: {json.dumps({"type": "message_delta", "delta": {"stop_reason": finish_reason, "stop_sequence": None}, "usage": {"input_tokens": usage.get("prompt_tokens", 0), "output_tokens": usage.get("completion_tokens", 0)}})}\n\n'
+                                        except json.JSONDecodeError:
+                                            continue
+                    except Exception as e:
+                        error_event = {
+                            "type": "error",
+                            "error": {"type": "api_error", "message": str(e)},
+                        }
+                        yield f"event: error\ndata: {json.dumps(error_event)}\n\n"
+                    finally:
+                        # Don't send message_stop here as it's already handled when [DONE] is received
+                        pass
+                
                 return StreamingResponse(
-                    stream_anthropic_response(openai_response),
+                    generate_anthropic_stream(),
                     media_type="text/event-stream",
                     headers={
                         "Cache-Control": "no-cache",
@@ -162,7 +254,7 @@ async def create_message(
             ):
                 finish_reason = openai_response_data["choices"][0].get("finish_reason")
                 if finish_reason:
-                    anthropic_response.stop_reason = finish_reason
+                    anthropic_response.stop_reason = map_openai_finish_reason_to_anthropic(finish_reason)
 
             return anthropic_response.model_dump()
 

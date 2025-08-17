@@ -1,7 +1,7 @@
 from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth import get_current_admin_user, get_current_portal_user
@@ -12,6 +12,7 @@ from app.schemas.provider import (
     HealthCheckResponse,
     ModelValidationResponse,
     ProviderTestRequest,
+    ProviderUpdate,
 )
 
 router = APIRouter()
@@ -285,6 +286,59 @@ async def _validate_google_gemini(
         return ModelValidationResponse(
             models=[], provider_type=request.provider_type, success=False, error=str(e)
         )
+
+
+@router.put("/providers/{provider_id}")
+async def update_provider(
+    provider_id: int,
+    provider_data: ProviderUpdate,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_admin_user),
+):
+    """Update a provider (admin only) - Added for frontend portal compatibility"""
+    result = await db.execute(select(Provider).where(Provider.id == provider_id))
+    provider = result.scalar_one_or_none()
+    if not provider:
+        raise HTTPException(status_code=404, detail="Provider not found")
+
+    update_data = provider_data.model_dump(exclude_none=True)
+    
+    # Check for duplicate name if name is being updated
+    if "name" in update_data:
+        result = await db.execute(
+            select(Provider).where(
+                Provider.name == update_data["name"],
+                Provider.id != provider_id
+            )
+        )
+        existing_provider = result.scalar_one_or_none()
+        if existing_provider:
+            raise HTTPException(status_code=400, detail=f"Provider with name '{update_data['name']}' already exists")
+    
+    for field, value in update_data.items():
+        setattr(provider, field, value)
+
+    await db.commit()
+    await db.refresh(provider)
+    return provider
+
+
+@router.delete("/providers/{provider_id}")
+async def delete_provider(
+    provider_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_admin_user),
+):
+    """Delete a provider (admin only) - Added for frontend portal compatibility"""
+    result = await db.execute(select(Provider).where(Provider.id == provider_id))
+    provider = result.scalar_one_or_none()
+    
+    if not provider:
+        raise HTTPException(status_code=404, detail="Provider not found")
+    
+    await db.delete(provider)
+    await db.commit()
+    return {"detail": "Provider deleted successfully"}
 
 
 async def _check_google_health(

@@ -12,7 +12,7 @@ class TestAPIKeyManagement:
     def test_create_api_key_as_admin(self, client, admin_api_key):
         """Test creating an API key as admin"""
         response = client.post(
-            "/v1/api-keys",
+            "/api/v1/api-keys",
             headers={"Authorization": f"Bearer {admin_api_key}"},
             json={
                 "key_name": "Test Key",
@@ -29,7 +29,7 @@ class TestAPIKeyManagement:
     async def test_get_api_keys_as_user(self, client, test_user_api_key):
         """Test getting API keys as regular user"""
         response = client.get(
-            "/v1/api-keys",
+            "/api/v1/api-keys",
             headers={"Authorization": f"Bearer {test_user_api_key.api_key}"},
         )
 
@@ -38,13 +38,13 @@ class TestAPIKeyManagement:
 
     def test_get_api_keys_unauthorized(self, client):
         """Test getting API keys without authentication"""
-        response = client.get("/v1/api-keys")
+        response = client.get("/api/v1/api-keys")
         assert response.status_code == 403
 
     def test_update_api_key_as_admin(self, client, admin_api_key):
         """Test updating an API key as admin"""
         response = client.put(
-            "/v1/api-keys/1",
+            "/api/v1/api-keys/1",
             headers={"Authorization": f"Bearer {admin_api_key}"},
             json={"key_name": "Updated Key", "is_active": False},
         )
@@ -55,7 +55,7 @@ class TestAPIKeyManagement:
     def test_delete_api_key_as_admin(self, client, admin_api_key):
         """Test deleting an API key as admin"""
         response = client.delete(
-            "/v1/api-keys/1", headers={"Authorization": f"Bearer {admin_api_key}"}
+            "/api/v1/api-keys/1", headers={"Authorization": f"Bearer {admin_api_key}"}
         )
 
         # Should work if auth is properly implemented
@@ -64,7 +64,7 @@ class TestAPIKeyManagement:
     def test_create_api_key_with_expiry(self, client, admin_api_key):
         """Test creating an API key with expiration"""
         response = client.post(
-            "/v1/api-keys/with-expiry",
+            "/api/v1/api-keys/with-expiry",
             headers={"Authorization": f"Bearer {admin_api_key}"},
             params={
                 "key_name": "Expiring Key",

@@ -15,7 +15,7 @@ class TestProviderManagement:
         import uuid
 
         response = client.post(
-            "/v1/providers",
+            "/api/v1/providers",
             headers={"Authorization": f"Bearer {test_admin_api_key.api_key}"},
             json={
                 "name": f"Test Provider {uuid.uuid4().hex[:8]}",
@@ -34,7 +34,7 @@ class TestProviderManagement:
     async def test_get_providers_as_user(self, client, test_user_api_key):
         """Test getting providers as regular user"""
         response = client.get(
-            "/v1/providers",
+            "/api/v1/providers",
             headers={"Authorization": f"Bearer {test_user_api_key.api_key}"},
         )
 
@@ -44,7 +44,7 @@ class TestProviderManagement:
     @pytest.mark.asyncio
     async def test_get_providers_unauthorized(self, client):
         """Test getting providers without authentication"""
-        response = client.get("/v1/providers")
+        response = client.get("/api/v1/providers")
         assert response.status_code == 403
 
     @pytest.mark.asyncio
@@ -53,7 +53,7 @@ class TestProviderManagement:
     ):
         """Test updating a provider as admin"""
         response = client.put(
-            f"/v1/providers/{test_provider.id}",
+            f"/api/v1/providers/{test_provider.id}",
             headers={"Authorization": f"Bearer {test_admin_api_key.api_key}"},
             json={"name": "Updated Provider", "is_active": False},
         )
@@ -67,7 +67,7 @@ class TestProviderManagement:
     ):
         """Test deleting a provider as admin"""
         response = client.delete(
-            f"/v1/providers/{test_provider.id}",
+            f"/api/v1/providers/{test_provider.id}",
             headers={"Authorization": f"Bearer {test_admin_api_key.api_key}"},
         )
 
@@ -78,7 +78,7 @@ class TestProviderManagement:
     async def test_get_provider_models(self, client, test_user_api_key, test_provider):
         """Test getting models from a specific provider"""
         response = client.get(
-            f"/v1/providers/{test_provider.id}/models",
+            f"/api/v1/providers/{test_provider.id}/models",
             headers={"Authorization": f"Bearer {test_user_api_key.api_key}"},
         )
 
@@ -89,7 +89,7 @@ class TestProviderManagement:
     async def test_get_all_models(self, client, test_user_api_key):
         """Test getting all models from all providers"""
         response = client.get(
-            "/v1/models",
+            "/api/v1/models",
             headers={"Authorization": f"Bearer {test_user_api_key.api_key}"},
         )
 

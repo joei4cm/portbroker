@@ -1,11 +1,11 @@
 from typing import List, Optional
 
 import httpx
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.auth import get_current_admin_api_key, get_current_api_key
+from app.core.auth import get_current_admin_api_key, get_current_api_key, get_hybrid_auth
 from app.core.database import get_db
 from app.models.strategy import Provider
 from app.schemas.provider import Provider as ProviderSchema
@@ -167,9 +167,12 @@ async def update_provider(
 async def delete_provider(
     provider_id: int,
     db: AsyncSession = Depends(get_db),
-    api_key: dict = Depends(get_current_admin_api_key),
+    user_info: dict = Depends(get_hybrid_auth),
 ):
-    """Delete a provider (admin only)"""
+    """Delete a provider (admin only) - accepts both API key and JWT authentication"""
+    if not user_info["is_admin"]:
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
     result = await db.execute(delete(Provider).where(Provider.id == provider_id))
     if result.rowcount == 0:
         raise HTTPException(status_code=404, detail="Provider not found")

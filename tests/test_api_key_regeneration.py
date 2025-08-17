@@ -37,7 +37,7 @@ class TestAPIKeyRegeneration:
 
         # Now regenerate the key
         regenerate_response = client.put(
-            f"/v1/api-keys/{key_id}",
+            f"/api/v1/api-keys/{key_id}",
             json={"regenerate": True},
             headers={"Authorization": f"Bearer {test_admin_api_key.api_key}"}
         )
@@ -79,7 +79,7 @@ class TestAPIKeyRegeneration:
         
         # Try to regenerate (should fail)
         regenerate_response = client.put(
-            f"/v1/api-keys/{key_id}",
+            f"/api/v1/api-keys/{key_id}",
             json={"regenerate": True},
             headers={"Authorization": f"Bearer {test_user_api_key.api_key}"}
         )
@@ -89,7 +89,7 @@ class TestAPIKeyRegeneration:
     async def test_regenerate_nonexistent_key(self, client, test_admin_api_key):
         """Test that regenerating a non-existent key returns 404"""
         regenerate_response = client.put(
-            "/v1/api-keys/99999",
+            "/api/v1/api-keys/99999",
             json={"regenerate": True},
             headers={"Authorization": f"Bearer {test_admin_api_key.api_key}"}
         )
@@ -120,7 +120,7 @@ class TestAPIKeyRegeneration:
 
         # Regenerate and update other fields
         update_response = client.put(
-            f"/v1/api-keys/{key_id}",
+            f"/api/v1/api-keys/{key_id}",
             json={
                 "regenerate": True,
                 "key_name": "updated_key_name",

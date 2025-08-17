@@ -5,7 +5,6 @@ Test duplicate provider name validation
 import pytest
 from sqlalchemy import select
 
-from app.core.database import AsyncSessionLocal
 from app.models.strategy import Provider
 
 
@@ -13,7 +12,7 @@ class TestDuplicateProviderValidation:
     """Test duplicate provider name validation"""
 
     @pytest.mark.asyncio
-    async def test_create_duplicate_provider_name(self, client, test_admin_api_key):
+    async def test_create_duplicate_provider_name(self, client, test_admin_api_key, test_db):
         """Test that creating a provider with duplicate name fails gracefully"""
         import uuid
 
@@ -49,18 +48,17 @@ class TestDuplicateProviderValidation:
         assert response.status_code == 400
         assert "already exists" in response.json()["detail"]
 
-        # Clean up
-        async with AsyncSessionLocal() as db:
-            result = await db.execute(
-                select(Provider).where(Provider.name == provider_data["name"])
-            )
-            provider = result.scalar_one_or_none()
-            if provider:
-                await db.delete(provider)
-                await db.commit()
+        # Clean up using test_db
+        result = await test_db.execute(
+            select(Provider).where(Provider.name == provider_data["name"])
+        )
+        provider = result.scalar_one_or_none()
+        if provider:
+            await test_db.delete(provider)
+            await test_db.commit()
 
     @pytest.mark.asyncio
-    async def test_update_provider_duplicate_name(self, client, test_admin_api_key):
+    async def test_update_provider_duplicate_name(self, client, test_admin_api_key, test_db):
         """Test that updating a provider to a duplicate name fails gracefully"""
         import uuid
 
@@ -115,12 +113,11 @@ class TestDuplicateProviderValidation:
         assert response.status_code == 400
         assert "already exists" in response.json()["detail"]
 
-        # Clean up
-        async with AsyncSessionLocal() as db:
-            result = await db.execute(
-                select(Provider).where(Provider.id.in_([provider1_id, provider2_id]))
-            )
-            providers = result.scalars().all()
-            for provider in providers:
-                await db.delete(provider)
-            await db.commit()
+        # Clean up using test_db
+        result = await test_db.execute(
+            select(Provider).where(Provider.id.in_([provider1_id, provider2_id]))
+        )
+        providers = result.scalars().all()
+        for provider in providers:
+            await test_db.delete(provider)
+        await test_db.commit()

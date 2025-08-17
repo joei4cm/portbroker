@@ -8,6 +8,7 @@ from app.schemas.anthropic import (
     AnthropicRequest,
     AnthropicResponse,
     CountTokensRequest,
+    StopReason,
 )
 from app.schemas.openai import (
     ChatCompletionRequest,
@@ -174,7 +175,7 @@ class TranslationService:
         message = ChatMessage(role="assistant", content=content, tool_calls=tool_calls)
 
         choice = Choice(
-            index=0, message=message, finish_reason=anthropic_response.stop_reason
+            index=0, message=message, finish_reason=anthropic_response.stop_reason.value if anthropic_response.stop_reason else None
         )
 
         usage = Usage(

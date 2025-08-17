@@ -113,6 +113,13 @@ uv run pytest -m "not slow"
 3. **After UI changes**: Run portal tests to verify authentication and permissions work
 4. **After database changes**: Run all tests to ensure data integrity
 
+**Test Database Configuration**:
+- **Separate Test Database**: Tests use `portbroker_test.db` to avoid affecting production data
+- **Environment Configuration**: Test settings are in `.env.test` file
+- **Database Isolation**: All test operations are confined to the test database
+- **Cleanup**: Tests automatically clean up created data to maintain test isolation
+- **Configuration**: Test database settings managed in `app/core/test_config.py`
+
 **Test Coverage Requirements**:
 - **API Endpoints**: All endpoints must have tests for success and error cases
 - **Authentication**: Both admin and non-admin user scenarios must be tested
@@ -351,3 +358,32 @@ The Vue.js portal provides a comprehensive management interface:
 - Axios for HTTP requests
 - Vue Router for navigation
 - Development proxy configured for backend integration
+
+## Data Preservation Ground Rules
+
+**CRITICAL**: Always preserve existing providers and strategies created by the user:
+
+### Provider and Strategy Protection
+- **NEVER delete or modify existing providers**: Any provider already in the database must be preserved
+- **NEVER delete or modify existing strategies**: Any strategy already in the database must be preserved  
+- **User-created data is sacred**: Only modify or delete data that you personally created during the current session
+- **Backup before operations**: Always check if providers/strategies exist before making changes
+
+### Safe Operations
+- **Test data only**: You may only delete test data that you created during the current session
+- **Create don't replace**: When adding new functionality, create new providers/strategies rather than replacing existing ones
+- **Verify before acting**: Always query the database first to understand what exists
+- **Use unique names**: When creating test providers/strategies, use unique, identifiable names
+
+### Verification Steps
+Before any database operations:
+1. Check existing providers: `SELECT * FROM providers;`
+2. Check existing strategies: `SELECT * FROM model_strategies;`
+3. Identify user-created vs test data
+4. Only proceed with modifications on test data
+
+### Consequences
+- Violating these rules may break the user's existing setup
+- Always err on the side of caution
+- When in doubt, ask the user for clarification
+- Test operations in a safe environment first

@@ -32,7 +32,12 @@ api.interceptors.response.use(
 export default {
   async login(credentials) {
     const response = await api.post('/login', { api_key: credentials.api_key })
-    return response.data
+    const data = response.data
+    
+    // Store the API key for future use (e.g., DELETE operations)
+    localStorage.setItem('apiKey', credentials.api_key)
+    
+    return data
   },
   
   async getProviders() {
@@ -51,7 +56,23 @@ export default {
   },
   
   async deleteProvider(id) {
-    const response = await api.delete(`/providers/${id}`)
+    // Use the v1 endpoint for delete since it's not available in portal endpoint
+    // Get the API key from localStorage (stored during login)
+    const apiKey = localStorage.getItem('apiKey')
+    if (!apiKey) {
+      throw new Error('No API key found. Please log in again.')
+    }
+    
+    // Create a separate axios instance for API key authentication
+    const deleteApi = axios.create({
+      baseURL: '/api/v1',
+      timeout: 10000,
+      headers: {
+        'Authorization': `Bearer ${apiKey}`
+      }
+    })
+    
+    const response = await deleteApi.delete(`/providers/${id}`)
     return response.data
   },
   
